@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 # 
-# Copyright (c) <year> <copyright holders>
+# Copyright (c) 2014 Pavel Krajcevski
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -40,3 +40,8 @@ INCLUDE_DIRECTORIES(${LIBUSB_1_INCLUDE_DIRS})
 ADD_LIBRARY(howlerlib ${HEADERS} ${SOURCES})
 
 TARGET_LINK_LIBRARIES(howlerlib ${LIBUSB_1_LIBRARIES})
+
+
+ADD_EXECUTABLE(howlerex example.c)
+TARGET_LINK_LIBRARIES(howlerex howlerlib)
+
