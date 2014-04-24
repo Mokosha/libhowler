@@ -1,7 +1,7 @@
 howler-drivers-linux
 ====================
 
-Device drivers for the Wolfware Howler Arcade controller
+Device drivers for the [Wolfware Howler Arcade Controller](http://www.wolfwareeng.com/)
 
 ### Requirements
 
