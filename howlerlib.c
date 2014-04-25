@@ -27,11 +27,27 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <unistd.h>
+
 static const unsigned short HOWLER_VENDOR_ID = 0x3EB;
 
 #define MAX_HOWLER_DEVICE_IDS 4
 static const unsigned short HOWLER_DEVICE_ID[MAX_HOWLER_DEVICE_IDS] =
   { 0x6800, 0x6801, 0x6802, 0x6803 };
+
+// Howler commands
+static const unsigned char CMD_HOWLER_ID = 0xCE;
+static const unsigned char CMD_SET_RGB_LED = 0x1;
+static const unsigned char CMD_SET_INDIVIDUAL_LED = 0x2;
+static const unsigned char CMD_SET_INPUT = 0x3;
+static const unsigned char CMD_GET_INPUT = 0x4;
+static const unsigned char CMD_SET_DEFAULT = 0x5;
+static const unsigned char CMD_SET_GLOBAL_BRIGHTNESS = 0x6;
+static const unsigned char CMD_SET_RGB_LED_DEFAULT = 0x7;
+static const unsigned char CMD_GET_RGB_LED = 0x8;
+static const unsigned char CMD_SET_RGB_LED_BANK = 0x9;
+static const unsigned char CMD_GET_FW_REV = 0xA0;
+static const unsigned char CMD_GET_ACCEL_DATA = 0xAC;
 
 static int is_howler(libusb_device *device) {
   struct libusb_device_descriptor desc;
@@ -70,6 +86,8 @@ int howler_init(howler_context **ctx_ptr) {
     error = HOWLER_ERROR_LIBUSB_CONTEXT_ERROR;
     goto err;
   }
+
+  libusb_set_debug(usb_ctx, 3);
 
   // Get a list of all available devices.
   libusb_device **device_list;
@@ -159,4 +177,92 @@ void howler_destroy(howler_context *ctx) {
 
 size_t howler_get_num_connected(howler_context *ctx) {
   return ctx->nDevices;
+}
+
+howler_device *howler_get_device(howler_context *ctx, unsigned int device_index) {
+  if(!ctx) { return NULL; }
+  if(device_index >= howler_get_num_connected(ctx)) { return NULL; }
+  return ctx->devices + device_index;
+}
+
+static int howler_sendrcv(howler_device *dev,
+                          unsigned char *cmd_buf,
+                          unsigned char *output) {
+  // Claim the interface. Make sure the kernel driver is not attached 
+  // first, however.
+  libusb_device_handle *handle = dev->usb_handle;
+  int err = libusb_kernel_driver_active(handle, 0);
+  if(err < 0) {
+    return -1;
+  }
+
+  int kernel_driver_attached = 0;
+  if(err) {
+    kernel_driver_attached = 1;
+    err = libusb_detach_kernel_driver(handle, 0);
+    if(err < 0) {
+      return -1;
+    }
+  }
+
+  err = libusb_claim_interface(handle, 0);
+  if(err < 0) {
+    goto detach;
+  }
+
+  // Write the command
+  int transferred = 0;
+  err = libusb_interrupt_transfer(handle, 0x02, cmd_buf, 24, &transferred, 0);
+  if(err < 0) {
+    goto error;
+  }
+
+  // Read the following command
+  unsigned char endpoint = 0x81;
+  while(err = libusb_interrupt_transfer(handle, endpoint, output, 24, &transferred, 0)) {
+    if(0x81 == endpoint) {
+      endpoint = 0x83;
+    } else if(0x83 == endpoint) {
+      endpoint = 0x86;
+    } else {
+      break;
+    }
+  }
+
+ error:
+  libusb_release_interface(handle, 0);
+ detach:
+  if(kernel_driver_attached) {
+    libusb_attach_kernel_driver(handle, 0);
+  }
+  return err;
+}
+
+int howler_get_device_version(howler_device *dev, char *dst,
+                              size_t dst_size, size_t *dst_len) {
+  // Setup the commands
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  unsigned char output[24];
+  memset(output, 0, sizeof(output));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_GET_FW_REV;
+
+  int err = howler_sendrcv(dev, cmd_buf, output);
+  if(err < 0 || output[0] != CMD_HOWLER_ID || output[1] != CMD_GET_FW_REV) {
+    return 0;
+  }
+
+
+  float version = (float)(output[2]) + 0.001 * (float)(output[3]);
+  snprintf(dst, dst_size, "%.3f", version);
+  dst[dst_size - 1] = '\0';
+
+  if(dst_len) {
+    *dst_len = strlen(dst) + 1;
+  }
+
+  return err;
 }

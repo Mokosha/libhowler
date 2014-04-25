@@ -26,10 +26,34 @@
 #include "howlerlib.h"
 
 int main() {
+  int exitCode = 0;
+
   howler_context *ctx;
   howler_init(&ctx);
 
-  printf("Num connected howlers: %d\n", howler_get_num_connected(ctx));
+  size_t nDevices = howler_get_num_connected(ctx);
+  printf("Num connected howlers: %d\n", nDevices);
 
+  if(!nDevices) {
+    exitCode = 1;
+    goto done;
+  }
+
+  howler_device *device = howler_get_device(ctx, 0);
+  if(!device) {
+    exitCode = 1;
+    goto done;
+  }
+
+  char versionBuf[256];
+  if(howler_get_device_version(device, versionBuf, 256, NULL) < 0) {
+    exitCode = 1;
+    goto done;
+  }
+
+  printf("Version string: %s\n", versionBuf);
+
+ done:
   howler_destroy(ctx);
+  return exitCode;
 }

@@ -56,6 +56,20 @@ void howler_destroy(howler_context *);
 
 size_t howler_get_num_connected(howler_context *ctx);
 
+/* Returns a pointer to the device located at index 'device_index'. This pointer
+ * will be NULL if:
+ *   device_index >= howler_get_num_connected(ctx)
+ */
+howler_device *howler_get_device(howler_context *ctx, unsigned int device_index);
+
+/* Returns the version string for the associated device.
+ * dst - A buffer to take the version string
+ * dst_size - The size of dst in bytes
+ * dst_len - The actual length of dst
+ */
+int howler_get_device_version(howler_device *dev, char *dst,
+                              size_t dst_size, size_t *dst_len);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
