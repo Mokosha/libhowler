@@ -70,6 +70,10 @@ howler_device *howler_get_device(howler_context *ctx, unsigned int device_index)
 int howler_get_device_version(howler_device *dev, char *dst,
                               size_t dst_size, size_t *dst_len);
 
+/* Sets a given LED to the proper RGB value */
+int howler_set_led(howler_device *dev, unsigned char led,
+                   unsigned char r, unsigned char g, unsigned char b);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

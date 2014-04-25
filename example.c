@@ -53,6 +53,13 @@ int main() {
 
   printf("Version string: %s\n", versionBuf);
 
+  unsigned int x = 0;
+  for(; x < 256; x++) {
+    if(howler_set_led(device, x, 255, 255, 0) < 0) {
+      fprintf(stderr, "Failed to set LED %d\n", x);
+    }
+  }
+
  done:
   howler_destroy(ctx);
   return exitCode;

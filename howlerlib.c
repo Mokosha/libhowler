@@ -218,14 +218,16 @@ static int howler_sendrcv(howler_device *dev,
   }
 
   // Read the following command
-  unsigned char endpoint = 0x81;
-  while(err = libusb_interrupt_transfer(handle, endpoint, output, 24, &transferred, 0)) {
-    if(0x81 == endpoint) {
-      endpoint = 0x83;
-    } else if(0x83 == endpoint) {
-      endpoint = 0x86;
-    } else {
-      break;
+  if(output) {
+    unsigned char endpoint = 0x81;
+    while(err = libusb_interrupt_transfer(handle, endpoint, output, 24, &transferred, 0)) {
+      if(0x81 == endpoint) {
+        endpoint = 0x83;
+      } else if(0x83 == endpoint) {
+        endpoint = 0x86;
+      } else {
+        break;
+      }
     }
   }
 
@@ -265,4 +267,19 @@ int howler_get_device_version(howler_device *dev, char *dst,
   }
 
   return err;
+}
+
+int howler_set_led(howler_device *dev, unsigned char led,
+                   unsigned char r, unsigned char g, unsigned char b) {
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_RGB_LED;
+  cmd_buf[2] = led;
+  cmd_buf[3] = r;
+  cmd_buf[4] = g;
+  cmd_buf[5] = b;
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
 }
