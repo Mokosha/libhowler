@@ -29,13 +29,21 @@
 
 #include <unistd.h>
 
-static const unsigned short HOWLER_VENDOR_ID = 0x3EB;
 
-#define MAX_HOWLER_DEVICE_IDS 4
-static const unsigned short HOWLER_DEVICE_ID[MAX_HOWLER_DEVICE_IDS] =
-  { 0x6800, 0x6801, 0x6802, 0x6803 };
+/*******************************************************************************
+ *
+ * Internal types
+ *
+ ******************************************************************************/
 
-// Howler commands
+typedef unsigned char bank_location[2];
+
+/*******************************************************************************
+ *
+ * USB Command constants
+ *
+ ******************************************************************************/
+
 static const unsigned char CMD_HOWLER_ID = 0xCE;
 static const unsigned char CMD_SET_RGB_LED = 0x1;
 static const unsigned char CMD_SET_INDIVIDUAL_LED = 0x2;
@@ -49,131 +57,178 @@ static const unsigned char CMD_SET_RGB_LED_BANK = 0x9;
 static const unsigned char CMD_GET_FW_REV = 0xA0;
 static const unsigned char CMD_GET_ACCEL_DATA = 0xAC;
 
-static int is_howler(libusb_device *device) {
-  struct libusb_device_descriptor desc;
-  libusb_get_device_descriptor(device, &desc);
+/*******************************************************************************
+ *
+ *  Static functions
+ *
+ *******************************************************************************
+ */
 
-  if(desc.idVendor != HOWLER_VENDOR_ID) {
+static bank_location howler_button_to_bank[HOWLER_NUM_BUTTONS][3] = {
+  /* Button 1 */
+  { /* Red */ { /* Bank 0 */ 0, /* Location 1 */ 1 },
+    /* Green */ { /* Bank 2 */ 2, /* Location 1 */ 1 },
+    /* Blue */ { /* Bank 4 */ 4, /* Location 1 */ 1 },
+  },
+
+  /* Button 2 */
+  { { 0, 2 }, { 2, 2 }, { 4, 2 } },
+
+  /* ... etc ... */
+  { { 0, 3 }, { 2, 3 }, { 4, 3 } },
+  { { 0, 4 }, { 2, 4 }, { 4, 4 } },
+  { { 0, 5 }, { 2, 5 }, { 4, 5 } },
+  { { 0, 6 }, { 2, 6 }, { 4, 6 } },
+  { { 0, 7 }, { 2, 7 }, { 4, 7 } },
+  { { 1, 0 }, { 3, 0 }, { 5, 0 } },
+  { { 1, 1 }, { 3, 1 }, { 5, 1 } },
+  { { 1, 2 }, { 3, 2 }, { 5, 2 } },
+  { { 1, 3 }, { 3, 3 }, { 5, 3 } },
+  { { 1, 4 }, { 3, 4 }, { 5, 4 } },
+  { { 1, 5 }, { 3, 5 }, { 5, 5 } },
+  { { 0, 14 }, { 2, 14 }, { 4, 14 } },
+  { { 0, 13 }, { 2, 13 }, { 4, 13 } },
+  { { 0, 12 }, { 2, 12 }, { 4, 12 } },
+  { { 0, 11 }, { 2, 11 }, { 4, 11 } },
+  { { 0, 10 }, { 2, 10 }, { 4, 10 } },
+  { { 0, 9 }, { 2, 9 }, { 4, 9 } },
+  { { 0, 8 }, { 2, 8 }, { 4, 8 } },
+  { { 1, 15 }, { 3, 15 }, { 5, 15 } },
+  { { 1, 14 }, { 3, 14 }, { 5, 14 } },
+  { { 1, 13 }, { 3, 13 }, { 5, 13 } },
+  { { 1, 12 }, { 3, 12 }, { 5, 12 } },
+  { { 1, 11 }, { 3, 11 }, { 5, 11 } },
+  { { 1, 10 }, { 3, 10 }, { 5, 10 } },
+};
+
+static bank_location howler_joystick_to_bank[HOWLER_NUM_JOYSTICKS][3] = {
+  { { 0, 0 }, { 2, 0 }, { 4, 0 } },
+  { { 0, 15 }, { 2, 15 }, { 4, 15 } },
+  { { 1, 6 }, { 3, 6 }, { 5, 6 } },
+  { { 1, 9 }, { 3, 9 }, { 5, 9 } },
+};
+
+static bank_location howler_hp_led_to_bank[HOWLER_NUM_HIGH_POWER_LEDS][3]
+= {
+  { { 1, 7 }, { 3, 7 }, { 5, 7 } },
+  { { 1, 8 }, { 3, 8 }, { 5, 8 } },
+};
+
+/* Control LEDs
+ * LEDs are indexed according to the following scheme:
+ * [0, 3] - Joystick LEDs 1-4, respectively
+ * [4, 30] - Button LEDs 1-26, respectively
+ * [31, 32] - High powered LEDs
+ */
+
+/* Sets a given LED to the proper intensity value */
+static int howler_set_led_channel(howler_device *dev,
+                                  unsigned char index,
+                                  howler_led_channel_name channel,
+                                  howler_led_channel value) {
+  if(channel >= 85) {
+    fprintf(stderr, "ERROR: howler_set_led invalid index: %d\n", index);
+    return -1;
+  }
+
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_INDIVIDUAL_LED;
+  cmd_buf[2] = 3*index + (unsigned char)channel;
+  cmd_buf[3] = value;
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
+}
+
+/* Sets a given LED to the proper RGB value */
+static int howler_set_led(howler_device *dev,
+                          unsigned char index,
+                          howler_led led) {
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_RGB_LED;
+  cmd_buf[2] = index;
+  cmd_buf[3] = led.red;
+  cmd_buf[4] = led.green;
+  cmd_buf[5] = led.blue;
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
+}
+
+static int howler_set_led_bank(howler_device *dev, unsigned char index,
+                               howler_led_bank *bank) {
+  if(index >= 6) {
+    fprintf(stderr, "ERROR: howler_set_led_bank invalid index: %d\n", index);
+    return -1;
+  }
+
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_RGB_LED_BANK;
+  cmd_buf[2] = index;
+
+  assert((sizeof(cmd_buf) - 3) > sizeof(*bank));
+  memcpy(cmd_buf + 3, bank, sizeof(*bank));
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
+}
+
+/* Gets the LED values for a given index */
+static int howler_get_led(howler_led *out,
+                          howler_device *dev,
+                          unsigned char index) {
+  if(index >= HOWLER_NUM_LEDS) {
+    fprintf(stderr, "ERROR: howler_get_led invalid index: %d\n", index);
+    return -1;
+  }
+
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  unsigned char output[24];
+  memset(output, 0, sizeof(output));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_GET_RGB_LED;
+  cmd_buf[2] = index;
+
+  if(howler_sendrcv(dev, cmd_buf, output) < 0) {
+    return -1;
+  }
+
+  if(output[0] != CMD_HOWLER_ID || output[1] != CMD_GET_RGB_LED) {
+    return -2;
+  }
+
+  out->red = output[2];
+  out->green = output[3];
+  out->blue = output[4];
+  return 0;
+}
+
+/* Sets the LED banks for the given device */
+static int update_led_bank(howler_device *dev, bank_location loc, unsigned char value) {
+  unsigned char bank = loc[0];
+  unsigned char led = loc[1];
+  if(dev->led_banks[bank][led] == value) {
     return 0;
   }
 
-  int has_device_id = 0;
-  unsigned int i = 0;
-  for(; i < MAX_HOWLER_DEVICE_IDS; i++) {
-    if(desc.idProduct == HOWLER_DEVICE_ID[i]) {
-      has_device_id = 1;
-    }
-  }
-
-  if(!has_device_id) {
-    return 0;
-  }
-  return 1;
+  dev->led_banks[bank][led] = value;
+  return howler_set_led_bank(dev, bank, &(dev->led_banks[bank]));
 }
 
-int howler_init(howler_context **ctx_ptr) {
-  // Convenience variables
-  unsigned int i;
-
-  // First, check if the pointer is valid...
-  int error = HOWLER_SUCCESS;
-  if(!ctx_ptr) { return HOWLER_ERROR_INVALID_PTR; }
-
-  // Allocate a USB context so that we can talk to the devices...
-  libusb_context *usb_ctx;
-  int ret = libusb_init(&usb_ctx);
-  if(ret) {
-    error = HOWLER_ERROR_LIBUSB_CONTEXT_ERROR;
-    goto err;
-  }
-
-  libusb_set_debug(usb_ctx, 3);
-
-  // Get a list of all available devices.
-  libusb_device **device_list;
-  ssize_t nDevices = libusb_get_device_list(usb_ctx, &device_list);
-  if(nDevices < 0) {
-    error = HOWLER_ERROR_LIBUSB_DEVICE_LIST_ERROR;
-    goto err_after_libusb_context;
-  }
-
-  // Find which ones are howlers...
-  size_t nHowlers = 0;
-  for(i = 0; i < nDevices; i++) {
-    if(is_howler(device_list[i])) {
-      nHowlers++;
-    }
-  }
-
-  // Short circuit if no howlers...
-  if(!nHowlers) {
-    howler_context *result = malloc(sizeof(howler_context));
-    result->usb_ctx = usb_ctx;
-    result->nDevices = nHowlers;
-    result->devices = NULL;
-    *ctx_ptr = result;
-  }
-
-  howler_device *howlers = malloc(nHowlers * sizeof(howler_device));
-  unsigned int howler_idx = 0;
-  for(i = 0; i < nDevices; i++) {
-    if(!is_howler(device_list[i]))
-      continue;
-
-    libusb_device *d = device_list[i];
-    libusb_device_handle *h = NULL;
-    int err = libusb_open(d, &h);
-    if(err < 0) {
-      if(err == LIBUSB_ERROR_ACCESS) {
-        fprintf(stderr,
-                "WARNING: Unable to open interface to Howler device: "
-                "Permission Denied\n");
-      }
-
-      // Just skip this device...
-      nHowlers--;
-      continue;
-    }
-    
-    assert(howler_idx < nHowlers);
-    howler_device *howler = &(howlers[howler_idx]);
-    howler->usb_device = d;
-    howler->usb_handle = h;
-    howler_idx++;
-  }
-
-  assert(howler_idx == nHowlers);
-
-  // Everything is OK...
-  howler_context *result = malloc(sizeof(howler_context));
-  result->usb_ctx = usb_ctx;
-  result->nDevices = nHowlers;
-  result->devices = howlers;
-  *ctx_ptr = result;
-
-  // Cleanup
-  libusb_free_device_list(device_list, 1);
-  return HOWLER_SUCCESS;
-
-  // Errors...
- err_after_libusb_context:
-  libusb_exit(usb_ctx);
- err:
-  *ctx_ptr = NULL;
-  return error;
-}
-
-void howler_destroy(howler_context *ctx) {
-  if(!ctx) { return; }
-  unsigned int i = 0;
-  for(; i < ctx->nDevices; i++) {
-    libusb_close(ctx->devices[i].usb_handle);
-  }
-  free(ctx->devices);
-
-  libusb_exit(ctx->usb_ctx);
-  free(ctx);
-}
+/*******************************************************************************
+ *
+ * USB Command constants
+ * 
+ ******************************************************************************/
 
 size_t howler_get_num_connected(howler_context *ctx) {
   return ctx->nDevices;
@@ -184,67 +239,6 @@ howler_device *howler_get_device(howler_context *ctx, unsigned int device_index)
   if(device_index >= howler_get_num_connected(ctx)) { return NULL; }
   return ctx->devices + device_index;
 }
-
-static int howler_sendrcv(howler_device *dev,
-                          unsigned char *cmd_buf,
-                          unsigned char *output) {
-  // Claim the interface. Make sure the kernel driver is not attached 
-  // first, however.
-  libusb_device_handle *handle = dev->usb_handle;
-  int err = libusb_kernel_driver_active(handle, 0);
-  if(err < 0) {
-    return -1;
-  }
-
-  int kernel_driver_attached = 0;
-  if(err) {
-    kernel_driver_attached = 1;
-    err = libusb_detach_kernel_driver(handle, 0);
-    if(err < 0) {
-      return -1;
-    }
-  }
-
-  err = libusb_claim_interface(handle, 0);
-  if(err < 0) {
-    goto detach;
-  }
-
-  // Write the command
-  int transferred = 0;
-  err = libusb_interrupt_transfer(handle, 0x02, cmd_buf, 24, &transferred, 0);
-  if(err < 0) {
-    goto error;
-  }
-
-  // Read the following command
-  if(output) {
-    unsigned char endpoint = 0x81;
-    while(err = libusb_interrupt_transfer(handle, endpoint, output, 24, &transferred, 0)) {
-      if(0x81 == endpoint) {
-        endpoint = 0x83;
-      } else if(0x83 == endpoint) {
-        endpoint = 0x86;
-      } else {
-        break;
-      }
-    }
-  }
-
- error:
-  libusb_release_interface(handle, 0);
- detach:
-  if(kernel_driver_attached) {
-    libusb_attach_kernel_driver(handle, 0);
-  }
-  return err;
-}
-
-/* Sets an LED bank to the given RGB values */
-typedef howler_led_channel howler_led_bank[16];
-static int howler_set_led_bank(howler_device *dev, unsigned char bank_idx,
-                               const howler_led_bank *bank);
-
 
 int howler_get_device_version(howler_device *dev, char *dst,
                               size_t dst_size, size_t *dst_len) {
@@ -275,54 +269,113 @@ int howler_get_device_version(howler_device *dev, char *dst,
   return err;
 }
 
-int howler_set_led(howler_device *dev, unsigned char index, howler_led led) {
-  unsigned char cmd_buf[24];
-  memset(cmd_buf, 0, sizeof(cmd_buf));
-
-  cmd_buf[0] = CMD_HOWLER_ID;
-  cmd_buf[1] = CMD_SET_RGB_LED;
-  cmd_buf[2] = index;
-  cmd_buf[3] = led.red;
-  cmd_buf[4] = led.green;
-  cmd_buf[5] = led.blue;
-
-  return howler_sendrcv(dev, cmd_buf, NULL);
+/* Sets the RGB LED value of the given button
+ * Buttons are numbered from 1 to 26 */
+int howler_set_button_led(howler_device *dev,
+                          unsigned char button,
+                          howler_led led) {
+#if 0
+  int err = 0;
+  err = err || howler_set_button_led_channel(dev, button, 0, led.red);
+  err = err || howler_set_button_led_channel(dev, button, 1, led.green);
+  err = err || howler_set_button_led_channel(dev, button, 2, led.blue);
+  return -err;
+#else
+  unsigned char button_offset = 4;
+  return howler_set_led(dev, button + button_offset - 1, led);
+#endif
 }
 
-int howler_set_led_channel(howler_device *dev, unsigned char index,
-                   howler_led_channel_name channel, howler_led_channel val) {
-  if(channel >= 85) {
-    fprintf(stderr, "ERROR: howler_set_led invalid index: %d\n", index);
+/* Sets the LED value of the specific channel for the button
+ * Buttons are numbered from 1 to 26 */
+int howler_set_button_led_channel(howler_device *dev,
+                                  unsigned char button,
+                                  howler_led_channel_name channel,
+                                  howler_led_channel value) {
+#if 0
+  int button_index = (int)button - 1;
+  if(button_index < 0 || button_index >= HOWLER_NUM_BUTTONS) {
+    fprintf(stderr, "ERROR: howler_set_button_led invalid button index: %d\n",
+            button);
     return -1;
   }
 
-  unsigned char cmd_buf[24];
-  memset(cmd_buf, 0, sizeof(cmd_buf));
-
-  cmd_buf[0] = CMD_HOWLER_ID;
-  cmd_buf[1] = CMD_SET_INDIVIDUAL_LED;
-  cmd_buf[2] = 3*index + (unsigned char)channel;
-  cmd_buf[3] = val;
-
-  return howler_sendrcv(dev, cmd_buf, NULL);
+  return update_led_bank(dev, howler_button_to_bank[button_index][channel], value);
+#else
+  unsigned char button_offset = 4;
+  return howler_set_led_channel(dev, button + button_offset - 1, channel, value);
+#endif
 }
 
-int howler_set_led_bank(howler_device *dev, unsigned char index,
-                        const howler_led_bank *bank) {
-  if(index >= 6) {
-    fprintf(stderr, "ERROR: howler_set_led_bank invalid index: %d\n", index);
+/* Gets the LED value of the specific channel for the button
+ * Buttons are numbered from 1 to 26 */
+int howler_get_button_led(howler_led *out,
+                                  howler_device *dev,
+                                  unsigned char button) {
+  int button_index = (int)button - 1;
+  if(button_index < 0 || button_index >= HOWLER_NUM_BUTTONS) {
+    fprintf(stderr, "ERROR: howler_set_button_led invalid button index: %d\n",
+            button);
     return -1;
   }
 
-  unsigned char cmd_buf[24];
-  memset(cmd_buf, 0, sizeof(cmd_buf));
-
-  cmd_buf[0] = CMD_HOWLER_ID;
-  cmd_buf[1] = CMD_SET_RGB_LED_BANK;
-  cmd_buf[2] = index;
-
-  assert((sizeof(cmd_buf) - 3) > sizeof(*bank));
-  memcpy(cmd_buf + 3, bank, sizeof(*bank));
-
-  return howler_sendrcv(dev, cmd_buf, NULL);
+  int button_offset = 4;
+  return howler_get_led(out, dev, button_offset + button_index);
 }
+
+/* Sets the RGB LED value of the given joystick
+ * Joysticks are numbered from 1 to 4 */
+int howler_set_joystick_led(howler_device *dev,
+                            unsigned char joystick,
+                            howler_led led) {
+  int err = 0;
+  err = err || howler_set_button_led_channel(dev, joystick, 0, led.red);
+  err = err || howler_set_button_led_channel(dev, joystick, 1, led.green);
+  err = err || howler_set_button_led_channel(dev, joystick, 2, led.blue);
+  return -err;
+}
+
+/* Sets the LED value of the specific channel for the given joystick
+ * Joysticks are numbered from 1 to 4 */
+int howler_set_joystick_led_channel(howler_device *dev,
+                                    unsigned char joystick,
+                                    howler_led_channel_name channel,
+                                    howler_led_channel value) {
+  int joystick_index = (int)joystick - 1;
+  if(joystick_index < 0 || joystick_index >= HOWLER_NUM_JOYSTICKS) {
+    fprintf(stderr, "ERROR: howler_set_joystick_led invalid joystick index: %d\n",
+            joystick);
+    return -1;
+  }
+
+  return update_led_bank(dev, howler_joystick_to_bank[joystick_index][channel], value);
+}
+
+/* Sets the RGB LED value of the given high powered LED controller
+ * High powere LED controllers are numbered from 1 to 2 */
+int howler_set_high_power_led(howler_device *dev,
+                              unsigned char index,
+                              howler_led led) {
+  int err = 0;
+  err = err || howler_set_button_led_channel(dev, index, 0, led.red);
+  err = err || howler_set_button_led_channel(dev, index, 1, led.green);
+  err = err || howler_set_button_led_channel(dev, index, 2, led.blue);
+  return -err;
+}
+
+/* Sets the LED value of the specific channel for the given high powered LED
+ * High powere LED controllers are numbered from 1 to 2 */
+int howler_set_high_power_led_channel(howler_device *dev,
+                                      unsigned char index,
+                                      howler_led_channel_name channel,
+                                      howler_led_channel value) {
+  int high_power_index = (int)index - 1;
+  if(high_power_index < 0 || high_power_index >= HOWLER_NUM_HIGH_POWER_LEDS) {
+    fprintf(stderr, "ERROR: howler_set_high_power_led invalid high_power index: %d\n",
+            index);
+    return -1;
+  }
+
+  return update_led_bank(dev, howler_hp_led_to_bank[high_power_index][channel], value);
+}
+

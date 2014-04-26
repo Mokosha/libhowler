@@ -31,6 +31,7 @@ SET(HEADERS
 
 SET(SOURCES
   "howler.c"
+  "usb_linux.c"
 )
 
 FIND_PACKAGE(libusb-1.0 REQUIRED)
@@ -43,5 +44,5 @@ TARGET_LINK_LIBRARIES(howler ${LIBUSB_1_LIBRARIES})
 ADD_EXECUTABLE(howler-example example.c)
 TARGET_LINK_LIBRARIES(howler-example howler)
 
-ADD_EXECUTABLE(howlerctl howlerctl.c)
+ADD_EXECUTABLE(howlerctl ${HEADERS} howlerctl.c)
 TARGET_LINK_LIBRARIES(howlerctl howler)

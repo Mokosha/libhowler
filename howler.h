@@ -33,7 +33,9 @@ extern "C" {
 
 #define HOWLER_NUM_BUTTONS 26
 #define HOWLER_NUM_JOYSTICKS 4
-#define HOWLER_NUM_HIGH_POWER_LEDS 4
+#define HOWLER_NUM_HIGH_POWER_LEDS 2
+#define HOWLER_NUM_LEDS \
+  (HOWLER_NUM_BUTTONS + HOWLER_NUM_JOYSTICKS + HOWLER_NUM_HIGH_POWER_LEDS)
 
 typedef unsigned char howler_led_channel;
 typedef union {
@@ -51,12 +53,11 @@ typedef enum {
   HOWLER_LED_CHANNEL_BLUE
 } howler_led_channel_name;
 
+typedef howler_led_channel howler_led_bank[16];
 typedef struct {
   libusb_device *usb_device;
   libusb_device_handle *usb_handle;
-  howler_led buttons[HOWLER_NUM_BUTTONS];
-  howler_led joysticks[HOWLER_NUM_JOYSTICKS];
-  howler_led high_power_leds[HOWLER_NUM_HIGH_POWER_LEDS];
+  howler_led_bank led_banks[6];
 } howler_device;
 
 typedef struct {
@@ -70,6 +71,14 @@ static const int HOWLER_ERROR_INVALID_PTR = -1;
 static const int HOWLER_ERROR_LIBUSB_CONTEXT_ERROR = -2;
 static const int HOWLER_ERROR_LIBUSB_DEVICE_LIST_ERROR = -3;
 
+/* Constant variables */
+static const unsigned short HOWLER_VENDOR_ID = 0x3EB;
+
+#define MAX_HOWLER_DEVICE_IDS 4
+static const unsigned short HOWLER_DEVICE_ID[MAX_HOWLER_DEVICE_IDS] =
+  { 0x6800, 0x6801, 0x6802, 0x6803 };
+
+
 /* Initialize the Howler context. This context interfaces with all of the
  * identifiable howler controllers. It first makes sure to initialize libusb
  * in order to send commands. It returns 0 on success, and an error otherwise
@@ -77,6 +86,12 @@ static const int HOWLER_ERROR_LIBUSB_DEVICE_LIST_ERROR = -3;
 int howler_init(howler_context **);
 void howler_destroy(howler_context *);
 
+/* Internal function used to send and receive messages from the howler device. You
+ * should never need to call this function directly.
+ */
+int howler_sendrcv(howler_device *dev, unsigned char *cmd_buf, unsigned char *output);
+
+/* Returns the number of connected Howler devices */
 size_t howler_get_num_connected(howler_context *ctx);
 
 /* Returns a pointer to the device located at index 'device_index'. This pointer
@@ -93,21 +108,51 @@ howler_device *howler_get_device(howler_context *ctx, unsigned int device_index)
 int howler_get_device_version(howler_device *dev, char *dst,
                               size_t dst_size, size_t *dst_len);
 
-/* Control LEDs
- * LEDs are indexed according to the following scheme:
- * [0, 3] - Joystick LEDs 1-4, respectively
- * [4, 30] - Button LEDs 1-26, respectively
- * [31, 32] - High powered LEDs
- */
+/* Sets the RGB LED value of the given button
+ * Buttons are numbered from 1 to 26 */
+int howler_set_button_led(howler_device *dev,
+                          unsigned char button,
+                          howler_led led);
 
-/* Sets a given LED to the proper intensity value */
-int howler_set_led_channel(howler_device *dev, unsigned char index,
-                   howler_led_channel_name channel, howler_led_channel value);
+/* Gets the RGB LED value of the given button
+ * Buttons are numbered from 1 to 26 */
+int howler_get_button_led(howler_led *out,
+                          howler_device *dev,
+                          unsigned char button);
 
-/* Sets a given LED to the proper RGB value */
-int howler_set_led(howler_device *dev, unsigned char index, howler_led led);
+/* Sets the LED value of the specific channel for the button
+ * Buttons are numbered from 1 to 26 */
+int howler_set_button_led_channel(howler_device *dev,
+                                  unsigned char button,
+                                  howler_led_channel_name channel,
+                                  howler_led_channel value);
 
-/* Gets the LED values for a given index */
+/* Sets the RGB LED value of the given joystick
+ * Joysticks are numbered from 1 to 4 */
+int howler_set_joystick_led(howler_device *dev,
+                            unsigned char joystick,
+                            howler_led led);
+
+/* Sets the LED value of the specific channel for the given joystick
+ * Joysticks are numbered from 1 to 4 */
+int howler_set_joystick_led_channel(howler_device *dev,
+                                    unsigned char joystick,
+                                    howler_led_channel_name channel,
+                                    howler_led_channel value);
+
+/* Sets the RGB LED value of the given high powered LED controller
+ * High powere LED controllers are numbered from 1 to 2 */
+int howler_set_high_power_led(howler_device *dev,
+                              unsigned char index,
+                              howler_led led);
+
+/* Sets the LED value of the specific channel for the given high powered LED
+ * High powere LED controllers are numbered from 1 to 2 */
+int howler_set_high_power_led_channel(howler_device *dev,
+                                      unsigned char index,
+                                      howler_led_channel_name channel,
+                                      howler_led_channel value);
+
 
 #ifdef __cplusplus
 } // extern "C"
