@@ -45,3 +45,6 @@ TARGET_LINK_LIBRARIES(howlerlib ${LIBUSB_1_LIBRARIES})
 ADD_EXECUTABLE(howlerex example.c)
 TARGET_LINK_LIBRARIES(howlerex howlerlib)
 
+ADD_EXECUTABLE(howlerctl howlerctl.c)
+TARGET_LINK_LIBRARIES(howlerctl howlerlib)
+
