@@ -21,30 +21,27 @@
 # THE SOFTWARE.
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
-PROJECT(Howler)
+PROJECT(libhowler)
 
-SET(CMAKE_MODULE_PATH "${Howler_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
+SET(CMAKE_MODULE_PATH "${libhowler_SOURCE_DIR}" ${CMAKE_MODULE_PATH})
 
 SET(HEADERS
-  "howlerlib.h"
+  "howler.h"
 )
 
 SET(SOURCES
-  "howlerlib.c"
+  "howler.c"
 )
 
 FIND_PACKAGE(libusb-1.0 REQUIRED)
 
 INCLUDE_DIRECTORIES(${LIBUSB_1_INCLUDE_DIRS})
 
-ADD_LIBRARY(howlerlib ${HEADERS} ${SOURCES})
+ADD_LIBRARY(howler ${HEADERS} ${SOURCES})
+TARGET_LINK_LIBRARIES(howler ${LIBUSB_1_LIBRARIES})
 
-TARGET_LINK_LIBRARIES(howlerlib ${LIBUSB_1_LIBRARIES})
-
-
-ADD_EXECUTABLE(howlerex example.c)
-TARGET_LINK_LIBRARIES(howlerex howlerlib)
+ADD_EXECUTABLE(howler-example example.c)
+TARGET_LINK_LIBRARIES(howler-example howler)
 
 ADD_EXECUTABLE(howlerctl howlerctl.c)
-TARGET_LINK_LIBRARIES(howlerctl howlerlib)
-
+TARGET_LINK_LIBRARIES(howlerctl howler)

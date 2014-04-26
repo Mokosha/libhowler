@@ -23,7 +23,7 @@
 
 #include <stdio.h>
 
-#include "howlerlib.h"
+#include "howler.h"
 
 int main() {
   int exitCode = 0;

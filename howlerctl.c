@@ -24,7 +24,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "howlerlib.h"
+#include "howler.h"
 
 static void print_version() {
   printf("HowlerCtl Version 0.0.1\n");

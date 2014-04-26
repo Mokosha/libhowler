@@ -21,7 +21,7 @@
  * THE SOFTWARE.
  */
 
-#include "howlerlib.h"
+#include "howler.h"
 
 #include <assert.h>
 #include <stdio.h>
