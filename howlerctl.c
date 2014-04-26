@@ -40,8 +40,8 @@ static void print_usage() {
   printf("    Where COMMAND is one of the following:\n");
   printf("        help\n");
   printf("        get-firmware\n");
-  printf("        set-led LED VALUE\n");
-  printf("        set-rgb-led LED RED GREEN BLUE\n");
+  printf("        set-led-channel LED (red|green|blue) VALUE\n");
+  printf("        set-led LED RED GREEN BLUE\n");
 }
 
 static int get_firmware(howler_device *dev, char *buf, size_t bufSz) {
@@ -97,7 +97,7 @@ static int parse_byte(unsigned char *ret, const char *str, const char *name) {
 }
 
 static int set_led(howler_device *device, int cmd_idx, const char **argv, int argc) {
-  if((argc - cmd_idx) != 3) {
+  if((argc - cmd_idx) != 4) {
     print_usage();
     return -1;
   }
@@ -107,12 +107,33 @@ static int set_led(howler_device *device, int cmd_idx, const char **argv, int ar
     return -1;
   }
 
-  unsigned char value;
-  if(parse_byte(&value, argv[cmd_idx + 2], "LED value") < 0) {
+  if(((unsigned int)index) * 3 + 2 > 255) {
+    fprintf(stderr, "Invalid LED index.\n");
     return -1;
   }
 
-  if(howler_set_led(device, index, value) < 0) {
+  enum {
+    LED_RED_CHANNEL = 0,
+    LED_GREEN_CHANNEL,
+    LED_BLUE_CHANNEL
+  } channel;
+  if(strncmp(argv[cmd_idx + 2], "red", 3) == 0) {
+    channel = LED_RED_CHANNEL;
+  } else if(strncmp(argv[cmd_idx + 2], "green", 5) == 0) {
+    channel = LED_GREEN_CHANNEL;
+  } else if(strncmp(argv[cmd_idx + 2], "blue", 4) == 0) {
+    channel = LED_BLUE_CHANNEL;
+  } else {
+    print_usage();
+    return -1;
+  }
+
+  unsigned char value;
+  if(parse_byte(&value, argv[cmd_idx + 3], "LED value") < 0) {
+    return -1;
+  }
+
+  if(howler_set_led(device, index * 3 + (unsigned char)channel, value) < 0) {
     fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
     return -1;
   }
@@ -212,13 +233,13 @@ int main(int argc, const char **argv) {
     get_firmware(device, versionBuf, 256);
     printf("Firmware version: %s\n", versionBuf);
 
-  } else if(strncmp(cmd, "set-led", 7) == 0) {
+  } else if(strncmp(cmd, "set-led-channel", 15) == 0) {
     if(set_led(device, cmd_idx, argv, argc) < 0) {
       exitCode = 1;
       goto done;
     }
 
-  } else if(strncmp(cmd, "set-rgb-led", 11) == 0) {
+  } else if(strncmp(cmd, "set-led", 7) == 0) {
     if(set_led_rgb(device, cmd_idx, argv, argc) < 0) {
       exitCode = 1;
       goto done;
