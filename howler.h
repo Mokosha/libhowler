@@ -31,16 +31,9 @@
 extern "C" {
 #endif
 
-typedef struct {
-  libusb_device *usb_device;
-  libusb_device_handle *usb_handle;
-} howler_device;
-
-typedef struct {
-  libusb_context *usb_ctx;
-  size_t nDevices;
-  howler_device *devices;
-} howler_context;
+#define HOWLER_NUM_BUTTONS 26
+#define HOWLER_NUM_JOYSTICKS 4
+#define HOWLER_NUM_HIGH_POWER_LEDS 4
 
 typedef unsigned char howler_led_channel;
 typedef union {
@@ -57,6 +50,20 @@ typedef enum {
   HOWLER_LED_CHANNEL_GREEN,
   HOWLER_LED_CHANNEL_BLUE
 } howler_led_channel_name;
+
+typedef struct {
+  libusb_device *usb_device;
+  libusb_device_handle *usb_handle;
+  howler_led buttons[HOWLER_NUM_BUTTONS];
+  howler_led joysticks[HOWLER_NUM_JOYSTICKS];
+  howler_led high_power_leds[HOWLER_NUM_HIGH_POWER_LEDS];
+} howler_device;
+
+typedef struct {
+  libusb_context *usb_ctx;
+  size_t nDevices;
+  howler_device *devices;
+} howler_context;
 
 static const int HOWLER_SUCCESS = 0;
 static const int HOWLER_ERROR_INVALID_PTR = -1;
@@ -86,12 +93,21 @@ howler_device *howler_get_device(howler_context *ctx, unsigned int device_index)
 int howler_get_device_version(howler_device *dev, char *dst,
                               size_t dst_size, size_t *dst_len);
 
+/* Control LEDs
+ * LEDs are indexed according to the following scheme:
+ * [0, 3] - Joystick LEDs 1-4, respectively
+ * [4, 30] - Button LEDs 1-26, respectively
+ * [31, 32] - High powered LEDs
+ */
+
 /* Sets a given LED to the proper intensity value */
 int howler_set_led_channel(howler_device *dev, unsigned char index,
                    howler_led_channel_name channel, howler_led_channel value);
 
 /* Sets a given LED to the proper RGB value */
 int howler_set_led(howler_device *dev, unsigned char index, howler_led led);
+
+/* Gets the LED values for a given index */
 
 #ifdef __cplusplus
 } // extern "C"

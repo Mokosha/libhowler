@@ -240,6 +240,12 @@ static int howler_sendrcv(howler_device *dev,
   return err;
 }
 
+/* Sets an LED bank to the given RGB values */
+typedef howler_led_channel howler_led_bank[16];
+static int howler_set_led_bank(howler_device *dev, unsigned char bank_idx,
+                               const howler_led_bank *bank);
+
+
 int howler_get_device_version(howler_device *dev, char *dst,
                               size_t dst_size, size_t *dst_len) {
   // Setup the commands
@@ -297,6 +303,26 @@ int howler_set_led_channel(howler_device *dev, unsigned char index,
   cmd_buf[1] = CMD_SET_INDIVIDUAL_LED;
   cmd_buf[2] = 3*index + (unsigned char)channel;
   cmd_buf[3] = val;
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
+}
+
+int howler_set_led_bank(howler_device *dev, unsigned char index,
+                        const howler_led_bank *bank) {
+  if(index >= 6) {
+    fprintf(stderr, "ERROR: howler_set_led_bank invalid index: %d\n", index);
+    return -1;
+  }
+
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_RGB_LED_BANK;
+  cmd_buf[2] = index;
+
+  assert((sizeof(cmd_buf) - 3) > sizeof(*bank));
+  memcpy(cmd_buf + 3, bank, sizeof(*bank));
 
   return howler_sendrcv(dev, cmd_buf, NULL);
 }
