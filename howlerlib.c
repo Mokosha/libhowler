@@ -269,8 +269,8 @@ int howler_get_device_version(howler_device *dev, char *dst,
   return err;
 }
 
-int howler_set_led(howler_device *dev, unsigned char led,
-                   unsigned char r, unsigned char g, unsigned char b) {
+int howler_set_led_rgb(howler_device *dev, unsigned char led,
+                       unsigned char r, unsigned char g, unsigned char b) {
   unsigned char cmd_buf[24];
   memset(cmd_buf, 0, sizeof(cmd_buf));
 
@@ -280,6 +280,18 @@ int howler_set_led(howler_device *dev, unsigned char led,
   cmd_buf[3] = r;
   cmd_buf[4] = g;
   cmd_buf[5] = b;
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
+}
+
+int howler_set_led(howler_device *dev, unsigned char led, unsigned char val) {
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_INDIVIDUAL_LED;
+  cmd_buf[2] = led;
+  cmd_buf[3] = val;
 
   return howler_sendrcv(dev, cmd_buf, NULL);
 }
