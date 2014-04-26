@@ -107,22 +107,13 @@ static int set_led(howler_device *device, int cmd_idx, const char **argv, int ar
     return -1;
   }
 
-  if(((unsigned int)index) * 3 + 2 > 255) {
-    fprintf(stderr, "Invalid LED index.\n");
-    return -1;
-  }
-
-  enum {
-    LED_RED_CHANNEL = 0,
-    LED_GREEN_CHANNEL,
-    LED_BLUE_CHANNEL
-  } channel;
+  howler_led_channel_name channel;
   if(strncmp(argv[cmd_idx + 2], "red", 3) == 0) {
-    channel = LED_RED_CHANNEL;
+    channel = HOWLER_LED_CHANNEL_RED;
   } else if(strncmp(argv[cmd_idx + 2], "green", 5) == 0) {
-    channel = LED_GREEN_CHANNEL;
+    channel = HOWLER_LED_CHANNEL_GREEN;
   } else if(strncmp(argv[cmd_idx + 2], "blue", 4) == 0) {
-    channel = LED_BLUE_CHANNEL;
+    channel = HOWLER_LED_CHANNEL_BLUE;
   } else {
     print_usage();
     return -1;
@@ -133,7 +124,7 @@ static int set_led(howler_device *device, int cmd_idx, const char **argv, int ar
     return -1;
   }
 
-  if(howler_set_led(device, index * 3 + (unsigned char)channel, value) < 0) {
+  if(howler_set_led_channel(device, index, channel, value) < 0) {
     fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
     return -1;
   }
@@ -150,22 +141,14 @@ static int set_led_rgb(howler_device *device, int cmd_idx, const char **argv, in
     return -1;
   }
 
-  unsigned char red;
-  if(parse_byte(&red, argv[cmd_idx + 2], "Red LED") < 0) {
+  howler_led led;
+  if((parse_byte(&(led.red), argv[cmd_idx + 2], "Red LED") < 0) ||
+     (parse_byte(&(led.green), argv[cmd_idx + 3], "Green LED") < 0) ||
+     (parse_byte(&(led.blue), argv[cmd_idx + 4], "Blue LED") < 0)) {
     return -1;
   }
 
-  unsigned char green;
-  if(parse_byte(&green, argv[cmd_idx + 3], "Green LED") < 0) {
-    return -1;
-  }
-
-  unsigned char blue;
-  if(parse_byte(&blue, argv[cmd_idx + 4], "Blue LED") < 0) {
-    return -1;
-  }
-
-  if(howler_set_led_rgb(device, index, red, green, blue) < 0) {
+  if(howler_set_led(device, index, led) < 0) {
     fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
     return -1;
   }

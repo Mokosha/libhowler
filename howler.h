@@ -42,6 +42,22 @@ typedef struct {
   howler_device *devices;
 } howler_context;
 
+typedef unsigned char howler_led_channel;
+typedef union {
+  struct {
+    howler_led_channel red;
+    howler_led_channel green;
+    howler_led_channel blue;
+  };
+  howler_led_channel channels[3];
+} howler_led;
+
+typedef enum {
+  HOWLER_LED_CHANNEL_RED = 0,
+  HOWLER_LED_CHANNEL_GREEN,
+  HOWLER_LED_CHANNEL_BLUE
+} howler_led_channel_name;
+
 static const int HOWLER_SUCCESS = 0;
 static const int HOWLER_ERROR_INVALID_PTR = -1;
 static const int HOWLER_ERROR_LIBUSB_CONTEXT_ERROR = -2;
@@ -71,11 +87,11 @@ int howler_get_device_version(howler_device *dev, char *dst,
                               size_t dst_size, size_t *dst_len);
 
 /* Sets a given LED to the proper intensity value */
-int howler_set_led(howler_device *dev, unsigned char led, unsigned char val);
+int howler_set_led_channel(howler_device *dev, unsigned char index,
+                   howler_led_channel_name channel, howler_led_channel value);
 
 /* Sets a given LED to the proper RGB value */
-int howler_set_led_rgb(howler_device *dev, unsigned char led,
-                       unsigned char r, unsigned char g, unsigned char b);
+int howler_set_led(howler_device *dev, unsigned char index, howler_led led);
 
 #ifdef __cplusplus
 } // extern "C"
