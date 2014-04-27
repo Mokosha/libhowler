@@ -49,6 +49,40 @@ static int is_howler(libusb_device *device) {
   return 1;
 }
 
+static int howler_read_led(howler_led *out, unsigned char index,
+                           libusb_device_handle *handle) {
+  if(!out || !handle) {
+    return -1;
+  }
+
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_GET_RGB_LED;
+  cmd_buf[2] = index;
+
+  int transferred = 0;
+  int err = libusb_interrupt_transfer(handle, 0x02, cmd_buf, 24, &transferred, 0);
+  if(err < 0) { goto error; }
+
+  unsigned char output[24];
+  memset(output, 0, sizeof(output));
+
+  err = libusb_interrupt_transfer(handle, 0x81, output, 24, &transferred, 0);
+  if(err < 0) { goto error; }
+
+  if(output[0] != CMD_HOWLER_ID || output[1] != CMD_GET_RGB_LED) {
+    return -1;
+  }
+
+  out->red = output[2];
+  out->green = output[3];
+  out->blue = output[4];
+ error:
+  return err;
+}
+
 static int howler_read_leds(howler_device *dev) {
   if(!dev) {
     return -1;
@@ -76,39 +110,32 @@ static int howler_read_leds(howler_device *dev) {
     goto detach;
   }
 
-  unsigned char led_index = 4;
-
+  unsigned char led_index = 0;
   int j = 0;
-  for(; j < HOWLER_NUM_BUTTONS; j++) {
-    unsigned char cmd_buf[24];
-    memset(cmd_buf, 0, sizeof(cmd_buf));
 
-    cmd_buf[0] = CMD_HOWLER_ID;
-    cmd_buf[1] = CMD_GET_RGB_LED;
-    cmd_buf[2] = led_index++;
-
-    int transferred = 0;
-    err = libusb_interrupt_transfer(handle, 0x02, cmd_buf, 24, &transferred, 0);
-    if(err < 0) {
-      goto error;
-    }
-
-    unsigned char output[24];
-    memset(output, 0, sizeof(output));
-
-    err = libusb_interrupt_transfer(handle, 0x81, output, 24, &transferred, 0);
-    if(err < 0) {
-      goto error;
-    }
-
-    if(output[0] != CMD_HOWLER_ID || output[1] != CMD_GET_RGB_LED) {
-      goto error;
-    }
-
+  // Read Joysticks
+  for(j = 0; j < HOWLER_NUM_JOYSTICKS; j++) {
     howler_led led;
-    led.red = output[2];
-    led.green = output[3];
-    led.blue = output[4];
+    err = howler_read_led(&led, led_index++, handle);
+    if(err < 0) {
+      goto error;
+    }
+
+    int k = 0;
+    for(; k < 3; k++) {
+      unsigned char bank = howler_joystick_to_bank[j][k][0];
+      unsigned char led_loc = howler_joystick_to_bank[j][k][1];
+      dev->led_banks[bank][led_loc] = led.channels[k];
+    }
+  }
+
+  // Read buttons
+  for(j = 0; j < HOWLER_NUM_BUTTONS; j++) {
+    howler_led led;
+    err = howler_read_led(&led, led_index++, handle);
+    if(err < 0) {
+      goto error;
+    }
 
     int k = 0;
     for(; k < 3; k++) {
@@ -118,6 +145,21 @@ static int howler_read_leds(howler_device *dev) {
     }
   }
 
+  // Read high power LEDs
+  for(j = 0; j < HOWLER_NUM_HIGH_POWER_LEDS; j++) {
+    howler_led led;
+    err = howler_read_led(&led, led_index++, handle);
+    if(err < 0) {
+      goto error;
+    }
+
+    int k = 0;
+    for(; k < 3; k++) {
+      unsigned char bank = howler_hp_led_to_bank[j][k][0];
+      unsigned char led_loc = howler_hp_led_to_bank[j][k][1];
+      dev->led_banks[bank][led_loc] = led.channels[k];
+    }
+  }
  error:
   libusb_release_interface(handle, 0);
  detach:
