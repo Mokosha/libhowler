@@ -171,7 +171,7 @@ static int update_led_bank(howler_device *dev, bank_location loc, unsigned char 
   }
 
   dev->led_banks[bank][led] = value;
-  return howler_set_led_bank(dev, bank, &(dev->led_banks[bank]));
+  return howler_set_led_bank(dev, bank + 1, &(dev->led_banks[bank]));
 }
 
 /*******************************************************************************
@@ -224,16 +224,11 @@ int howler_get_device_version(howler_device *dev, char *dst,
 int howler_set_button_led(howler_device *dev,
                           unsigned char button,
                           howler_led led) {
-#if 0
   int err = 0;
   err = err || howler_set_button_led_channel(dev, button, 0, led.red);
   err = err || howler_set_button_led_channel(dev, button, 1, led.green);
   err = err || howler_set_button_led_channel(dev, button, 2, led.blue);
   return -err;
-#else
-  unsigned char button_offset = 4;
-  return howler_set_led(dev, button + button_offset - 1, led);
-#endif
 }
 
 /* Sets the LED value of the specific channel for the button
