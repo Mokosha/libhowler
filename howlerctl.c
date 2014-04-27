@@ -234,7 +234,11 @@ int main(int argc, const char **argv) {
   }
 
   howler_context *ctx;
-  howler_init(&ctx);
+  if(howler_init(&ctx) < 0) {
+    fprintf(stderr, "Howler initialization failed.\n");
+    exitCode = 1;
+    goto done;
+  }
 
   size_t nDevices = howler_get_num_connected(ctx);
   if(!nDevices) {
