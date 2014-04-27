@@ -40,25 +40,6 @@ typedef unsigned char bank_location[2];
 
 /*******************************************************************************
  *
- * USB Command constants
- *
- ******************************************************************************/
-
-static const unsigned char CMD_HOWLER_ID = 0xCE;
-static const unsigned char CMD_SET_RGB_LED = 0x1;
-static const unsigned char CMD_SET_INDIVIDUAL_LED = 0x2;
-static const unsigned char CMD_SET_INPUT = 0x3;
-static const unsigned char CMD_GET_INPUT = 0x4;
-static const unsigned char CMD_SET_DEFAULT = 0x5;
-static const unsigned char CMD_SET_GLOBAL_BRIGHTNESS = 0x6;
-static const unsigned char CMD_SET_RGB_LED_DEFAULT = 0x7;
-static const unsigned char CMD_GET_RGB_LED = 0x8;
-static const unsigned char CMD_SET_RGB_LED_BANK = 0x9;
-static const unsigned char CMD_GET_FW_REV = 0xA0;
-static const unsigned char CMD_GET_ACCEL_DATA = 0xAC;
-
-/*******************************************************************************
- *
  *  Static functions
  *
  *******************************************************************************

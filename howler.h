@@ -31,6 +31,25 @@
 extern "C" {
 #endif
 
+/*******************************************************************************
+ *
+ * USB Command constants
+ *
+ ******************************************************************************/
+
+#define CMD_HOWLER_ID 0xCE
+#define CMD_SET_RGB_LED 0x1
+#define CMD_SET_INDIVIDUAL_LED 0x2
+#define CMD_SET_INPUT 0x3
+#define CMD_GET_INPUT 0x4
+#define CMD_SET_DEFAULT 0x5
+#define CMD_SET_GLOBAL_BRIGHTNESS 0x6
+#define CMD_SET_RGB_LED_DEFAULT 0x7
+#define CMD_GET_RGB_LED 0x8
+#define CMD_SET_RGB_LED_BANK 0x9
+#define CMD_GET_FW_REV 0xA0
+#define CMD_GET_ACCEL_DATA 0xAC
+
 #define HOWLER_NUM_BUTTONS 26
 #define HOWLER_NUM_JOYSTICKS 4
 #define HOWLER_NUM_HIGH_POWER_LEDS 2
