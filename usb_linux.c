@@ -273,15 +273,9 @@ int howler_sendrcv(howler_device *dev,
 
   // Read the following command
   if(output) {
-    unsigned char endpoint = 0x81;
-    while(err = libusb_interrupt_transfer(handle, endpoint, output, 24, &transferred, 0)) {
-      if(0x81 == endpoint) {
-        endpoint = 0x83;
-      } else if(0x83 == endpoint) {
-        endpoint = 0x86;
-      } else {
-        break;
-      }
+    err = libusb_interrupt_transfer(handle, 0x81, output, 24, &transferred, 0);
+    if(err < 0) {
+      goto error;
     }
   }
 
