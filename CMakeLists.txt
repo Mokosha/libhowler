@@ -32,6 +32,7 @@ SET(HEADERS
 SET(SOURCES
   "howler.c"
   "usb_linux.c"
+  "led_bank_tables.c"
 )
 
 FIND_PACKAGE(libusb-1.0 REQUIRED)

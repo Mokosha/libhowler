@@ -78,7 +78,6 @@ static const unsigned short HOWLER_VENDOR_ID = 0x3EB;
 static const unsigned short HOWLER_DEVICE_ID[MAX_HOWLER_DEVICE_IDS] =
   { 0x6800, 0x6801, 0x6802, 0x6803 };
 
-
 /* Initialize the Howler context. This context interfaces with all of the
  * identifiable howler controllers. It first makes sure to initialize libusb
  * in order to send commands. It returns 0 on success, and an error otherwise
@@ -153,7 +152,9 @@ int howler_set_high_power_led_channel(howler_device *dev,
                                       howler_led_channel_name channel,
                                       howler_led_channel value);
 
-
+extern unsigned char howler_button_to_bank[HOWLER_NUM_BUTTONS][3][2];
+extern unsigned char howler_joystick_to_bank[HOWLER_NUM_JOYSTICKS][3][2];
+extern unsigned char howler_hp_led_to_bank[HOWLER_NUM_HIGH_POWER_LEDS][3][2];
 #ifdef __cplusplus
 } // extern "C"
 #endif
