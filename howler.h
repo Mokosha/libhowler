@@ -107,6 +107,8 @@ howler_device *howler_get_device(howler_context *ctx, unsigned int device_index)
 int howler_get_device_version(howler_device *dev, char *dst,
                               size_t dst_size, size_t *dst_len);
 
+int howler_set_global_brightness(howler_device *dev, howler_led_channel level);
+
 /* Sets the RGB LED value of the given button
  * Buttons are numbered from 1 to 26 */
 int howler_set_button_led(howler_device *dev,

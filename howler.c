@@ -219,6 +219,17 @@ int howler_get_device_version(howler_device *dev, char *dst,
   return err;
 }
 
+int howler_set_global_brightness(howler_device *dev, howler_led_channel level) {
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_GLOBAL_BRIGHTNESS;
+  cmd_buf[2] = level;
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
+}
+
 /* Sets the RGB LED value of the given button
  * Buttons are numbered from 1 to 26 */
 int howler_set_button_led(howler_device *dev,
