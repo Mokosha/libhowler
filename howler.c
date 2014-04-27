@@ -92,7 +92,7 @@ static int howler_set_led(howler_device *dev,
 
 static int howler_set_led_bank(howler_device *dev, unsigned char index,
                                howler_led_bank *bank) {
-  if(index >= 6) {
+  if(index > 6 || index < 1) {
     fprintf(stderr, "ERROR: howler_set_led_bank invalid index: %d\n", index);
     return -1;
   }
