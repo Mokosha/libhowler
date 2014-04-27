@@ -49,6 +49,84 @@ static int is_howler(libusb_device *device) {
   return 1;
 }
 
+static int howler_read_leds(howler_device *dev) {
+  if(!dev) {
+    return -1;
+  }
+
+  // Claim the interface. Make sure the kernel driver is not attached 
+  // first, however.
+  libusb_device_handle *handle = dev->usb_handle;
+  int err = libusb_kernel_driver_active(handle, 0);
+  if(err < 0) {
+    return -1;
+  }
+
+  int kernel_driver_attached = 0;
+  if(err) {
+    kernel_driver_attached = 1;
+    err = libusb_detach_kernel_driver(handle, 0);
+    if(err < 0) {
+      return -1;
+    }
+  }
+
+  err = libusb_claim_interface(handle, 0);
+  if(err < 0) {
+    goto detach;
+  }
+
+  unsigned char led_index = 4;
+
+  int j = 0;
+  for(; j < HOWLER_NUM_BUTTONS; j++) {
+    unsigned char cmd_buf[24];
+    memset(cmd_buf, 0, sizeof(cmd_buf));
+
+    cmd_buf[0] = CMD_HOWLER_ID;
+    cmd_buf[1] = CMD_GET_RGB_LED;
+    cmd_buf[2] = led_index++;
+
+    int transferred = 0;
+    err = libusb_interrupt_transfer(handle, 0x02, cmd_buf, 24, &transferred, 0);
+    if(err < 0) {
+      goto error;
+    }
+
+    unsigned char output[24];
+    memset(output, 0, sizeof(output));
+
+    err = libusb_interrupt_transfer(handle, 0x81, output, 24, &transferred, 0);
+    if(err < 0) {
+      goto error;
+    }
+
+    if(output[0] != CMD_HOWLER_ID || output[1] != CMD_GET_RGB_LED) {
+      goto error;
+    }
+
+    howler_led led;
+    led.red = output[2];
+    led.green = output[3];
+    led.blue = output[4];
+
+    int k = 0;
+    for(; k < 3; k++) {
+      unsigned char bank = howler_button_to_bank[j][k][0];
+      unsigned char led_loc = howler_button_to_bank[j][k][1];
+      dev->led_banks[bank][led_loc] = led.channels[k];
+    }
+  }
+
+ error:
+  libusb_release_interface(handle, 0);
+ detach:
+  if(kernel_driver_attached) {
+    libusb_attach_kernel_driver(handle, 0);
+  }
+  return err;
+}
+
 int howler_init(howler_context **ctx_ptr) {
   // Convenience variables
   unsigned int i;
@@ -119,21 +197,10 @@ int howler_init(howler_context **ctx_ptr) {
     howler->usb_handle = h;
     memset(howler->led_banks, 0, 6*sizeof(howler_led_bank));
 
-    int j = 0;
-    for(; j < HOWLER_NUM_BUTTONS; j++) {
-      howler_led led;
-      if(howler_get_button_led(&led, howler, j+1) < 0) {
-        fprintf(stderr, "INTERNAL ERROR: Failed to query button LED during initialization.\n");
-        error = -1;
-        goto err_after_libusb_context;
-      }
-
-      int k = 0;
-      for(; k < 3; k++) {
-        unsigned char bank = howler_button_to_bank[j][k][0];
-        unsigned char led_loc = howler_button_to_bank[j][k][1];
-        howler->led_banks[bank][led_loc] = led.channels[k];
-      }
+    if(howler_read_leds(howler) < 0) {
+      fprintf(stderr, "WARNING: Unable to read LEDs during initialization\n");
+      nHowlers--;
+      continue;
     }
 
     howler_idx++;
