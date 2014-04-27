@@ -283,6 +283,21 @@ int howler_set_joystick_led_channel(howler_device *dev,
   return update_led_bank(dev, howler_joystick_to_bank[joystick_index][channel], value);
 }
 
+/* Gets the LED value of the specific channel for the joystick
+ * Joysticks are numbered from 1 to 4 */
+int howler_get_joystick_led(howler_led *out,
+                            howler_device *dev,
+                            unsigned char joystick) {
+  int joystick_index = (int)joystick - 1;
+  if(joystick_index < 0 || joystick_index >= HOWLER_NUM_JOYSTICKS) {
+    fprintf(stderr, "ERROR: howler_get_joystick_led invalid joystick index: %d\n",
+            joystick);
+    return -1;
+  }
+
+  return howler_get_led(out, dev, joystick_index);
+}
+
 /* Sets the RGB LED value of the given high powered LED controller
  * High powere LED controllers are numbered from 1 to 2 */
 int howler_set_high_power_led(howler_device *dev,
@@ -309,5 +324,21 @@ int howler_set_high_power_led_channel(howler_device *dev,
   }
 
   return update_led_bank(dev, howler_hp_led_to_bank[high_power_index][channel], value);
+}
+
+/* Gets the LED value of the specific channel for the high powered LED
+ * High powered LEDs are numbered from 1 to 2 */
+int howler_get_high_power_led(howler_led *out,
+                              howler_device *dev,
+                              unsigned char high_power_led) {
+  int high_power_index = (int)high_power_led - 1;
+  if(high_power_index < 0 || high_power_index >= HOWLER_NUM_HIGH_POWER_LEDS) {
+    fprintf(stderr, "ERROR: howler_get_high_power_led invalid high_power index: %d\n",
+            high_power_led);
+    return -1;
+  }
+
+  int high_power_offset = 4 + 26;
+  return howler_get_led(out, dev, high_power_offset + high_power_index);
 }
 

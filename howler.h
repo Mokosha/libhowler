@@ -160,6 +160,12 @@ int howler_set_joystick_led_channel(howler_device *dev,
                                     howler_led_channel_name channel,
                                     howler_led_channel value);
 
+/* Gets the LED value of the specific channel for the joystick
+ * Joysticks are numbered from 1 to 4 */
+int howler_get_joystick_led(howler_led *out,
+                            howler_device *dev,
+                            unsigned char joystick);
+
 /* Sets the RGB LED value of the given high powered LED controller
  * High powere LED controllers are numbered from 1 to 2 */
 int howler_set_high_power_led(howler_device *dev,
@@ -172,6 +178,12 @@ int howler_set_high_power_led_channel(howler_device *dev,
                                       unsigned char index,
                                       howler_led_channel_name channel,
                                       howler_led_channel value);
+
+/* Gets the LED value of the specific channel for the high powered LED
+ * High powered LEDs are numbered from 1 to 2 */
+int howler_get_high_power_led(howler_led *out,
+                              howler_device *dev,
+                              unsigned char high_power_led);
 
 extern unsigned char howler_button_to_bank[HOWLER_NUM_BUTTONS][3][2];
 extern unsigned char howler_joystick_to_bank[HOWLER_NUM_JOYSTICKS][3][2];

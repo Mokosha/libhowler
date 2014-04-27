@@ -77,9 +77,7 @@ static int parse_byte(unsigned char *ret, const char *str, const char *name) {
       fprintf(stderr, "Invalid value: %s\n", str);
     }
     ret_val = -1;
-  }
-
-  if(val > 255) {
+  } else if(val > 255) {
     if(name) {
       fprintf(stderr, "Invalid value for %s: %lu\n", name, val);
     } else {
@@ -167,29 +165,86 @@ static int set_button_rgb(howler_device *device, int cmd_idx, const char **argv,
   }
 }
 
+static int print_joystick_led_status(howler_device *device, unsigned char joystick) {
+  howler_led led;
+  if(howler_get_joystick_led(&led, device, joystick) < 0) {
+    return -1;
+  }
+  
+  fprintf(stdout, "Joystick %d LED status: (%d, %d, %d)\n",
+          joystick, led.red, led.green, led.blue);
+  return 0;
+}
+
 static int print_button_led_status(howler_device *device, unsigned char button) {
   howler_led led;
   if(howler_get_button_led(&led, device, button) < 0) {
     return -1;
   }
   
-  fprintf(stdout, "Button %d LED status: (%d, %d, %d)\n", button, led.red, led.green, led.blue);
+  fprintf(stdout, "Button %d LED status: (%d, %d, %d)\n",
+          button, led.red, led.green, led.blue);
   return 0;
 }
 
-static int get_button_rgb(howler_device *device, int cmd_idx, const char **argv, int argc) {
+static int print_high_power_led_status(howler_device *device, unsigned char index) {
+  howler_led led;
+  if(howler_get_high_power_led(&led, device, index) < 0) {
+    return -1;
+  }
+  
+  fprintf(stdout, "High power %d LED status: (%d, %d, %d)\n",
+          index, led.red, led.green, led.blue);
+  return 0;
+}
+
+static int get_led_status(howler_device *device, int cmd_idx, const char **argv, int argc) {
   int button_idx = -1;
   if((argc - cmd_idx) == 2) {
-    unsigned char index;
-    if(parse_byte(&index, argv[cmd_idx + 1], "BUTTON index") < 0) {
+    enum {
+      PRINT_JOYSTICK,
+      PRINT_BUTTON,
+      PRINT_HIGH_POWER_LED,
+    } led_type;
+    if(argv[cmd_idx + 1][0] == 'j' || argv[cmd_idx + 1][0] == 'J') {
+      led_type = PRINT_JOYSTICK;
+    } else if(argv[cmd_idx + 1][0] == 'B' || argv[cmd_idx + 1][0] == 'b') {
+      led_type = PRINT_BUTTON;
+    } else if(argv[cmd_idx + 1][0] == 'H' || argv[cmd_idx + 1][0] == 'h') {
+      led_type = PRINT_HIGH_POWER_LED;
+    } else {
+      fprintf(stderr, "Invalid LED index: %s\n", argv[cmd_idx + 1]);
+      fprintf(stderr, "Expected value of the format: J#, B#, H#\n");
+      fprintf(stderr, "  For example get the status of BUTT2 with 'B2'\n");
       return -1;
     }
 
-    if(index < 1 || index > 26) {
+    unsigned char index;
+    if(parse_byte(&index, argv[cmd_idx + 1] + 1, "index") < 0) {
+      return -1;
+    }
+
+    if(led_type == PRINT_JOYSTICK && (index < 1 || index > 4)) {
+      fprintf(stderr, "Invalid joystick index: %d\n", index);
+      fprintf(stderr, "Expecting value in the range 1-4\n", index);
+      return -1;
+    } else if(led_type == PRINT_BUTTON && (index < 1 || index > 26)) {
       fprintf(stderr, "Invalid button index: %d\n", index);
       fprintf(stderr, "Expecting value in the range 1-26\n", index);
       return -1;
+    } else if(led_type == PRINT_HIGH_POWER_LED && (index < 1 || index > 2)) {
+      fprintf(stderr, "Invalid high power LED index: %d\n", index);
+      fprintf(stderr, "Expecting value in the range 1-2\n", index);
+      return -1;
     }
+
+    switch(led_type) {
+      default: return -1;
+      case PRINT_JOYSTICK: return print_joystick_led_status(device, index);
+      case PRINT_BUTTON: return print_button_led_status(device, index);
+      case PRINT_HIGH_POWER_LED: return print_high_power_led_status(device, index);
+    }
+
   } else if((argc - cmd_idx) > 2) {
     print_usage();
     return -1;
@@ -198,8 +253,14 @@ static int get_button_rgb(howler_device *device, int cmd_idx, const char **argv,
   if(button_idx < 0) {
     int i = 1;
     int err = 0;
-    for(; i <= HOWLER_NUM_BUTTONS; i++) {
-      err = print_button_led_status(device, i);
+    for(; i <= HOWLER_NUM_JOYSTICKS; i++) {
+      err = err || print_joystick_led_status(device, i);
+    }
+    for(i = 1; i <= HOWLER_NUM_BUTTONS; i++) {
+      err = err || print_button_led_status(device, i);
+    }
+    for(i = 1; i <= HOWLER_NUM_HIGH_POWER_LEDS; i++) {
+      err = err || print_high_power_led_status(device, i);
     }
     return err;
   }
@@ -274,7 +335,7 @@ int main(int argc, const char **argv) {
     printf("Firmware version: %s\n", versionBuf);
 
   } else if(strncmp(cmd, "get-led-status", 7) == 0) {
-    if(get_button_rgb(device, cmd_idx, argv, argc) < 0) {
+    if(get_led_status(device, cmd_idx, argv, argc) < 0) {
       exitCode = 1;
       goto done;
     }
