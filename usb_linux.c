@@ -118,6 +118,24 @@ int howler_init(howler_context **ctx_ptr) {
     howler->usb_device = d;
     howler->usb_handle = h;
     memset(howler->led_banks, 0, 6*sizeof(howler_led_bank));
+
+    int j = 0;
+    for(; j < HOWLER_NUM_BUTTONS; j++) {
+      howler_led led;
+      if(howler_get_button_led(&led, howler, j+1) < 0) {
+        fprintf(stderr, "INTERNAL ERROR: Failed to query button LED during initialization.\n");
+        error = -1;
+        goto err_after_libusb_context;
+      }
+
+      int k = 0;
+      for(; k < 3; k++) {
+        unsigned char bank = howler_button_to_bank[j][k][0];
+        unsigned char led_loc = howler_button_to_bank[j][k][1];
+        howler->led_banks[bank][led_loc] = led.channels[k];
+      }
+    }
+
     howler_idx++;
   }
 
