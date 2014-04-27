@@ -248,7 +248,6 @@ int howler_set_button_led_channel(howler_device *dev,
                                   unsigned char button,
                                   howler_led_channel_name channel,
                                   howler_led_channel value) {
-#if 0
   int button_index = (int)button - 1;
   if(button_index < 0 || button_index >= HOWLER_NUM_BUTTONS) {
     fprintf(stderr, "ERROR: howler_set_button_led invalid button index: %d\n",
@@ -257,10 +256,6 @@ int howler_set_button_led_channel(howler_device *dev,
   }
 
   return update_led_bank(dev, howler_button_to_bank[button_index][channel], value);
-#else
-  unsigned char button_offset = 4;
-  return howler_set_led_channel(dev, button + button_offset - 1, channel, value);
-#endif
 }
 
 /* Gets the LED value of the specific channel for the button
