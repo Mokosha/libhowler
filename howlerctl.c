@@ -26,6 +26,17 @@
 
 #include "howler.h"
 
+typedef enum {
+  TYPE_BUTTON,
+  TYPE_JOYSTICK,
+  TYPE_HIGH_POWER_LED
+} control_type;
+
+typedef struct {
+  int index;
+  control_type type;
+} control;
+
 static void print_version() {
   printf("HowlerCtl Version 0.0.1\n");
 }
@@ -40,9 +51,9 @@ static void print_usage() {
   printf("    Where COMMAND is one of the following:\n");
   printf("        help\n");
   printf("        get-firmware\n");
-  printf("        get-led-status [BUTTON]\n");
-  printf("        set-button-led-channel BUTTON (red|green|blue) VALUE\n");
-  printf("        set-button-led BUTTON RED GREEN BLUE\n");
+  printf("        get-led-status [CONTROL]\n");
+  printf("        set-led-channel CONTROL (red|green|blue) VALUE\n");
+  printf("        set-led CONTROL RED GREEN BLUE\n");
 }
 
 static int get_firmware(howler_device *dev, char *buf, size_t bufSz) {
@@ -165,6 +176,49 @@ static int set_button_rgb(howler_device *device, int cmd_idx, const char **argv,
   }
 }
 
+static int parse_control(control *out, const char *ctl_str) {
+  if(!out || !ctl_str) {
+    return -1;
+  }
+
+  control_type type;
+  if(ctl_str[0] == 'j' || ctl_str[0] == 'J') {
+    type = TYPE_JOYSTICK;
+  } else if(ctl_str[0] == 'B' || ctl_str[0] == 'b') {
+    type = TYPE_BUTTON;
+  } else if(ctl_str[0] == 'H' || ctl_str[0] == 'h') {
+    type = TYPE_HIGH_POWER_LED;
+  } else {
+    fprintf(stderr, "Invalid control index: %s\n", ctl_str);
+    fprintf(stderr, "Expected value of the format: J#, B#, H#\n");
+    fprintf(stderr, "  For example get the status of BUTT2 with 'B2'\n");
+    return -1;
+  }
+
+  unsigned char index;
+  if(parse_byte(&index, ctl_str + 1, "index") < 0) {
+    return -1;
+  }
+
+  if(type == TYPE_JOYSTICK && (index < 1 || index > 4)) {
+    fprintf(stderr, "Invalid joystick index: %d\n", index);
+    fprintf(stderr, "Expecting value in the range 1-4\n", index);
+    return -1;
+  } else if(type == TYPE_BUTTON && (index < 1 || index > 26)) {
+    fprintf(stderr, "Invalid button index: %d\n", index);
+    fprintf(stderr, "Expecting value in the range 1-26\n", index);
+    return -1;
+  } else if(type == TYPE_HIGH_POWER_LED && (index < 1 || index > 2)) {
+    fprintf(stderr, "Invalid high power LED index: %d\n", index);
+    fprintf(stderr, "Expecting value in the range 1-2\n", index);
+    return -1;
+  }
+
+  out->type = type;
+  out->index = index;
+  return 0;
+}
+
 static int print_joystick_led_status(howler_device *device, unsigned char joystick) {
   howler_led led;
   if(howler_get_joystick_led(&led, device, joystick) < 0) {
@@ -201,48 +255,17 @@ static int print_high_power_led_status(howler_device *device, unsigned char inde
 static int get_led_status(howler_device *device, int cmd_idx, const char **argv, int argc) {
   int button_idx = -1;
   if((argc - cmd_idx) == 2) {
-    enum {
-      PRINT_JOYSTICK,
-      PRINT_BUTTON,
-      PRINT_HIGH_POWER_LED,
-    } led_type;
-    if(argv[cmd_idx + 1][0] == 'j' || argv[cmd_idx + 1][0] == 'J') {
-      led_type = PRINT_JOYSTICK;
-    } else if(argv[cmd_idx + 1][0] == 'B' || argv[cmd_idx + 1][0] == 'b') {
-      led_type = PRINT_BUTTON;
-    } else if(argv[cmd_idx + 1][0] == 'H' || argv[cmd_idx + 1][0] == 'h') {
-      led_type = PRINT_HIGH_POWER_LED;
-    } else {
-      fprintf(stderr, "Invalid LED index: %s\n", argv[cmd_idx + 1]);
-      fprintf(stderr, "Expected value of the format: J#, B#, H#\n");
-      fprintf(stderr, "  For example get the status of BUTT2 with 'B2'\n");
+
+    control c;
+    if(parse_control(&c, argv[cmd_idx + 1]) < 0) {
       return -1;
     }
 
-    unsigned char index;
-    if(parse_byte(&index, argv[cmd_idx + 1] + 1, "index") < 0) {
-      return -1;
-    }
-
-    if(led_type == PRINT_JOYSTICK && (index < 1 || index > 4)) {
-      fprintf(stderr, "Invalid joystick index: %d\n", index);
-      fprintf(stderr, "Expecting value in the range 1-4\n", index);
-      return -1;
-    } else if(led_type == PRINT_BUTTON && (index < 1 || index > 26)) {
-      fprintf(stderr, "Invalid button index: %d\n", index);
-      fprintf(stderr, "Expecting value in the range 1-26\n", index);
-      return -1;
-    } else if(led_type == PRINT_HIGH_POWER_LED && (index < 1 || index > 2)) {
-      fprintf(stderr, "Invalid high power LED index: %d\n", index);
-      fprintf(stderr, "Expecting value in the range 1-2\n", index);
-      return -1;
-    }
-
-    switch(led_type) {
+    switch(c.type) {
       default: return -1;
-      case PRINT_JOYSTICK: return print_joystick_led_status(device, index);
-      case PRINT_BUTTON: return print_button_led_status(device, index);
-      case PRINT_HIGH_POWER_LED: return print_high_power_led_status(device, index);
+      case TYPE_JOYSTICK: return print_joystick_led_status(device, c.index);
+      case TYPE_BUTTON: return print_button_led_status(device, c.index);
+      case TYPE_HIGH_POWER_LED: return print_high_power_led_status(device, c.index);
     }
 
   } else if((argc - cmd_idx) > 2) {
