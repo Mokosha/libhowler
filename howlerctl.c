@@ -45,15 +45,20 @@ static void print_usage() {
   print_version();
   printf("Usage: howler [DEVICE] COMMAND [OPTIONS]\n");
   printf("\n");
-  printf("    Where DEVICE is a number from 0 to 4 that designates the\n");
+  printf("    DEVICE is a number from 0 to 4 that designates the\n");
   printf("    corresponding Howler device. The default is 0.\n");
   printf("\n");
-  printf("    Where COMMAND is one of the following:\n");
+  printf("    COMMAND is one of the following:\n");
   printf("        help\n");
   printf("        get-firmware\n");
   printf("        get-led [CONTROL]\n");
   printf("        set-led-channel CONTROL (red|green|blue) VALUE\n");
   printf("        set-led CONTROL RED GREEN BLUE\n");
+  printf("\n");
+  printf("    CONTROL is a string conforming to one of the following:\n");
+  printf("        J1 - J4: Joystick 1 to Joystick 4\n");
+  printf("        B1 - B26: Button 1 to Button 26\n");
+  printf("        H1 - H2: High Power LED 1 or 2\n");
 }
 
 static int get_firmware(howler_device *dev, char *buf, size_t bufSz) {
