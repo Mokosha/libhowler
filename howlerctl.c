@@ -51,7 +51,7 @@ static void print_usage() {
   printf("    Where COMMAND is one of the following:\n");
   printf("        help\n");
   printf("        get-firmware\n");
-  printf("        get-led-status [CONTROL]\n");
+  printf("        get-led [CONTROL]\n");
   printf("        set-led-channel CONTROL (red|green|blue) VALUE\n");
   printf("        set-led CONTROL RED GREEN BLUE\n");
 }
@@ -106,75 +106,6 @@ static int parse_byte(unsigned char *ret, const char *str, const char *name) {
   return -1;
 }
 
-static int set_button_led(howler_device *device, int cmd_idx, const char **argv, int argc) {
-  if((argc - cmd_idx) != 4) {
-    print_usage();
-    return -1;
-  }
-
-  unsigned char index;
-  if(parse_byte(&index, argv[cmd_idx + 1], "BUTTON index") < 0) {
-    return -1;
-  }
-
-  if(index < 1 || index > 26) {
-    fprintf(stderr, "Invalid button index: %d\n", index);
-    fprintf(stderr, "Expecting value in the range 1-26\n", index);
-    return -1;
-  }
-
-  howler_led_channel_name channel;
-  if(strncmp(argv[cmd_idx + 2], "red", 3) == 0) {
-    channel = HOWLER_LED_CHANNEL_RED;
-  } else if(strncmp(argv[cmd_idx + 2], "green", 5) == 0) {
-    channel = HOWLER_LED_CHANNEL_GREEN;
-  } else if(strncmp(argv[cmd_idx + 2], "blue", 4) == 0) {
-    channel = HOWLER_LED_CHANNEL_BLUE;
-  } else {
-    print_usage();
-    return -1;
-  }
-
-  unsigned char value;
-  if(parse_byte(&value, argv[cmd_idx + 3], "LED value") < 0) {
-    return -1;
-  }
-
-  if(howler_set_button_led_channel(device, index, channel, value) < 0) {
-    fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
-    return -1;
-  }
-}
-
-static int set_button_rgb(howler_device *device, int cmd_idx, const char **argv, int argc) {
-  if((argc - cmd_idx) != 5) {
-    print_usage();
-    return -1;
-  }
-
-  unsigned char index;
-  if(parse_byte(&index, argv[cmd_idx + 1], "BUTTON index") < 0) {
-    return -1;
-  }
-
-  if(index < 1 || index > 26) {
-    fprintf(stderr, "Invalid button index: %d\n", index);
-    fprintf(stderr, "Expecting value in the range 1-26\n", index);
-    return -1;
-  }
-
-  howler_led led;
-  if((parse_byte(&(led.red), argv[cmd_idx + 2], "Red LED") < 0) ||
-     (parse_byte(&(led.green), argv[cmd_idx + 3], "Green LED") < 0) ||
-     (parse_byte(&(led.blue), argv[cmd_idx + 4], "Blue LED") < 0)) {
-    return -1;
-  }
-
-  if(howler_set_button_led(device, index, led) < 0) {
-    fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
-    return -1;
-  }
-}
 
 static int parse_control(control *out, const char *ctl_str) {
   if(!out || !ctl_str) {
@@ -216,6 +147,116 @@ static int parse_control(control *out, const char *ctl_str) {
 
   out->type = type;
   out->index = index;
+  return 0;
+}
+
+static int set_led_channel(howler_device *device, int cmd_idx, const char **argv, int argc) {
+  if((argc - cmd_idx) != 4) {
+    print_usage();
+    return -1;
+  }
+
+  control c;
+  if(parse_control(&c, argv[cmd_idx + 1]) < 0) {
+    return -1;
+  }
+
+  howler_led_channel_name channel;
+  if(strncmp(argv[cmd_idx + 2], "red", 3) == 0) {
+    channel = HOWLER_LED_CHANNEL_RED;
+  } else if(strncmp(argv[cmd_idx + 2], "green", 5) == 0) {
+    channel = HOWLER_LED_CHANNEL_GREEN;
+  } else if(strncmp(argv[cmd_idx + 2], "blue", 4) == 0) {
+    channel = HOWLER_LED_CHANNEL_BLUE;
+  } else {
+    print_usage();
+    return -1;
+  }
+
+  unsigned char value;
+  if(parse_byte(&value, argv[cmd_idx + 3], "LED value") < 0) {
+    return -1;
+  }
+
+  switch(c.type) {
+    case TYPE_JOYSTICK:
+    {
+      if(howler_set_joystick_led_channel(device, c.index, channel, value) < 0) {
+        fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
+        return -1;
+      }
+    }
+    break;
+
+    case TYPE_BUTTON:
+    {
+      if(howler_set_button_led_channel(device, c.index, channel, value) < 0) {
+        fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
+        return -1;
+      }
+    }
+    break;
+
+    case TYPE_HIGH_POWER_LED:
+    {
+      if(howler_set_high_power_led_channel(device, c.index, channel, value) < 0) {
+        fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
+        return -1;
+      }
+    }
+    break;
+  }
+
+  return 0;
+}
+
+static int set_led(howler_device *device, int cmd_idx, const char **argv, int argc) {
+  if((argc - cmd_idx) != 5) {
+    print_usage();
+    return -1;
+  }
+
+  control c;
+  if(parse_control(&c, argv[cmd_idx + 1]) < 0) {
+    return -1;
+  }
+
+  howler_led led;
+  if((parse_byte(&(led.red), argv[cmd_idx + 2], "Red LED") < 0) ||
+     (parse_byte(&(led.green), argv[cmd_idx + 3], "Green LED") < 0) ||
+     (parse_byte(&(led.blue), argv[cmd_idx + 4], "Blue LED") < 0)) {
+    return -1;
+  }
+
+  switch(c.type) {
+    case TYPE_JOYSTICK:
+    {
+      if(howler_set_joystick_led(device, c.index, led) < 0) {
+        fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
+        return -1;
+      }
+    }
+    break;
+
+    case TYPE_BUTTON:
+    {
+      if(howler_set_button_led(device, c.index, led) < 0) {
+        fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
+        return -1;
+      }
+    }
+    break;
+
+    case TYPE_HIGH_POWER_LED:
+    {
+      if(howler_set_high_power_led(device, c.index, led) < 0) {
+        fprintf(stderr, "INTERNAL ERROR: Unable to set LED\n");
+        return -1;
+      }
+    }
+    break;
+  }
+
   return 0;
 }
 
@@ -357,20 +398,20 @@ int main(int argc, const char **argv) {
     get_firmware(device, versionBuf, 256);
     printf("Firmware version: %s\n", versionBuf);
 
-  } else if(strncmp(cmd, "get-led-status", 7) == 0) {
+  } else if(strncmp(cmd, "get-led", 7) == 0) {
     if(get_led_status(device, cmd_idx, argv, argc) < 0) {
       exitCode = 1;
       goto done;
     }
 
-  } else if(strncmp(cmd, "set-button-led-channel", 15) == 0) {
-    if(set_button_led(device, cmd_idx, argv, argc) < 0) {
+  } else if(strncmp(cmd, "set-led-channel", 15) == 0) {
+    if(set_led_channel(device, cmd_idx, argv, argc) < 0) {
       exitCode = 1;
       goto done;
     }
 
-  } else if(strncmp(cmd, "set-button-led", 7) == 0) {
-    if(set_button_rgb(device, cmd_idx, argv, argc) < 0) {
+  } else if(strncmp(cmd, "set-led", 7) == 0) {
+    if(set_led(device, cmd_idx, argv, argc) < 0) {
       exitCode = 1;
       goto done;
     }
