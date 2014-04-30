@@ -90,7 +90,7 @@ static int howler_read_leds(howler_device *dev) {
 
   // Claim the interface. Make sure the kernel driver is not attached 
   // first, however.
-  libusb_device_handle *handle = dev->usb_handle;
+  libusb_device_handle *handle = (libusb_device_handle *)(dev->usb_handle);
   int err = libusb_kernel_driver_active(handle, 0);
   if(err < 0) {
     return -1;
@@ -235,7 +235,6 @@ int howler_init(howler_context **ctx_ptr) {
     
     assert(howler_idx < nHowlers);
     howler_device *howler = &(howlers[howler_idx]);
-    howler->usb_device = d;
     howler->usb_handle = h;
     memset(howler->led_banks, 0, 6*sizeof(howler_led_bank));
 
@@ -286,7 +285,7 @@ int howler_sendrcv(howler_device *dev,
                    unsigned char *output) {
   // Claim the interface. Make sure the kernel driver is not attached 
   // first, however.
-  libusb_device_handle *handle = dev->usb_handle;
+  libusb_device_handle *handle = (libusb_device_handle *)(dev->usb_handle);
   int err = libusb_kernel_driver_active(handle, 0);
   if(err < 0) {
     return -1;

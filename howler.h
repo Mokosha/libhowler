@@ -74,13 +74,12 @@ typedef enum {
 
 typedef howler_led_channel howler_led_bank[16];
 typedef struct {
-  libusb_device *usb_device;
-  libusb_device_handle *usb_handle;
+  void *usb_handle;
   howler_led_bank led_banks[6];
 } howler_device;
 
 typedef struct {
-  libusb_context *usb_ctx;
+  void *usb_ctx;
   size_t nDevices;
   howler_device *devices;
 } howler_context;
