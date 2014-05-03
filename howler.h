@@ -78,10 +78,21 @@ typedef struct {
   howler_led_bank led_banks[6];
 } howler_device;
 
+extern unsigned char howler_button_to_bank[HOWLER_NUM_BUTTONS][3][2];
+extern unsigned char howler_joystick_to_bank[HOWLER_NUM_JOYSTICKS][3][2];
+extern unsigned char howler_hp_led_to_bank[HOWLER_NUM_HIGH_POWER_LEDS][3][2];
+
+typedef void (*howler_button_callback)(int button, void *user_data);
+
 typedef struct {
   void *usb_ctx;
+  void *polling;
   size_t nDevices;
   howler_device *devices;
+
+  int exitFlag;
+  howler_button_callback key_down_callback;
+  howler_button_callback key_up_callback;
 } howler_context;
 
 static const int HOWLER_SUCCESS = 0;
@@ -183,10 +194,6 @@ int howler_set_high_power_led_channel(howler_device *dev,
 int howler_get_high_power_led(howler_led *out,
                               howler_device *dev,
                               unsigned char high_power_led);
-
-extern unsigned char howler_button_to_bank[HOWLER_NUM_BUTTONS][3][2];
-extern unsigned char howler_joystick_to_bank[HOWLER_NUM_JOYSTICKS][3][2];
-extern unsigned char howler_hp_led_to_bank[HOWLER_NUM_HIGH_POWER_LEDS][3][2];
 #ifdef __cplusplus
 } // extern "C"
 #endif

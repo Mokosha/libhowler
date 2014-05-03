@@ -27,6 +27,8 @@
 #include <stdio.h>
 #include <string.h>
 
+
+
 static int is_howler(libusb_device *device) {
   struct libusb_device_descriptor desc;
   libusb_get_device_descriptor(device, &desc);
@@ -169,6 +171,43 @@ static int howler_read_leds(howler_device *dev) {
   return err;
 }
 
+static void async_transfer_cb(struct libusb_transfer *transfer) {
+  howler_context *ctx = (howler_context *)(transfer->user_data);
+  if(!ctx) {
+    fprintf(stderr, "Invalid initialization of polling thread!\n");
+    exit(1);
+  }
+
+  //  fprintf(stdout, "Async transfer completed:\n");
+  //  int i = 0;
+  //  for(; i < 24; i++) {
+  //    fprintf(stdout, " 0x%x", transfer->buffer[i]);
+  //  }
+  //  fprintf(stdout, "\n");
+
+  if(transfer->status == LIBUSB_TRANSFER_COMPLETED) {
+
+    libusb_fill_interrupt_transfer(
+      transfer,
+      transfer->dev_handle,
+      0x83,
+      transfer->buffer,
+      24,
+      async_transfer_cb,
+      ctx,
+      0);
+    transfer->flags = 0;
+
+    int error = libusb_submit_transfer(transfer);
+    if(error < 0) {
+      fprintf(stderr, "Error submitting additional libusb transfer\n");
+    }
+  } else {
+    printf("Transfer failed: %d\n", transfer->status);
+    ctx->exitFlag = 1;
+  }
+}
+
 int howler_init(howler_context **ctx_ptr) {
   // Convenience variables
   unsigned int i;
@@ -254,6 +293,42 @@ int howler_init(howler_context **ctx_ptr) {
   result->usb_ctx = usb_ctx;
   result->nDevices = nHowlers;
   result->devices = howlers;
+
+  result->key_down_callback = NULL;
+  result->key_up_callback = NULL;
+
+  // Setup polling thread
+  struct libusb_transfer *polling = libusb_alloc_transfer(0);
+  if(!polling) {
+    fprintf(stderr, "Error allocating libusb_transfer struct.\n");
+    error = -1;
+    goto err_after_libusb_context;
+  }
+
+  char *transferBuffer = malloc(24);
+  memset(transferBuffer, 0, 24);
+
+  libusb_fill_interrupt_transfer(
+    polling,
+    (libusb_device_handle *)(howlers[0].usb_handle),
+    0x83,
+    transferBuffer,
+    24,
+    async_transfer_cb,
+    result,
+    0);
+  polling->flags = 0;
+
+  error = libusb_submit_transfer(polling);
+  if(error < 0) {
+    free(transferBuffer);
+    libusb_free_transfer(polling);
+    goto err_after_libusb_context;
+  }
+
+  result->polling = polling;
+  result->exitFlag = 0;
+
   *ctx_ptr = result;
 
   // Cleanup
@@ -262,6 +337,7 @@ int howler_init(howler_context **ctx_ptr) {
 
   // Errors...
  err_after_libusb_context:
+  libusb_free_device_list(device_list, 1);
   libusb_exit(usb_ctx);
  err:
   *ctx_ptr = NULL;
@@ -270,6 +346,11 @@ int howler_init(howler_context **ctx_ptr) {
 
 void howler_destroy(howler_context *ctx) {
   if(!ctx) { return; }
+
+  struct libusb_transfer *polling = (struct libusb_transfer *)(ctx->polling);
+  libusb_cancel_transfer(polling);
+  libusb_free_transfer(polling);
+
   unsigned int i = 0;
   for(; i < ctx->nDevices; i++) {
     libusb_close(ctx->devices[i].usb_handle);
