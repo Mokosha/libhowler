@@ -37,6 +37,8 @@ typedef struct {
   control_type type;
 } control;
 
+typedef int (*command_function)(howler_device *device, int cmd_idx, const char **argv, int argc);
+
 static void print_version() {
   printf("HowlerCtl Version 0.0.1\n");
 }
@@ -395,6 +397,7 @@ int main(int argc, const char **argv) {
 
   const char *cmd = argv[cmd_idx];
 
+  command_function cmdFn = NULL;
   if(strncmp(cmd, "help", 4) == 0) {
     print_usage();
 
@@ -404,25 +407,19 @@ int main(int argc, const char **argv) {
     printf("Firmware version: %s\n", versionBuf);
 
   } else if(strncmp(cmd, "get-led", 7) == 0) {
-    if(get_led_status(device, cmd_idx, argv, argc) < 0) {
-      exitCode = 1;
-      goto done;
-    }
-
+    cmdFn = &get_led_status;
   } else if(strncmp(cmd, "set-led-channel", 15) == 0) {
-    if(set_led_channel(device, cmd_idx, argv, argc) < 0) {
-      exitCode = 1;
-      goto done;
-    }
-
+    cmdFn = &set_led_channel;
   } else if(strncmp(cmd, "set-led", 7) == 0) {
-    if(set_led(device, cmd_idx, argv, argc) < 0) {
-      exitCode = 1;
-      goto done;
-    }
-
+    cmdFn = &set_led;
   } else {
     print_usage();
+    exitCode = 1;
+    goto done;
+  }
+
+  assert(cmdFn);
+  if((*cmdFn)(device, cmd_idx, argv, argc) < 0) {
     exitCode = 1;
     goto done;
   }
