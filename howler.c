@@ -37,6 +37,8 @@
 
 typedef unsigned char bank_location[2];
 
+static const unsigned char IT_KEYBOARD = 0x03;
+
 /*******************************************************************************
  *
  *  Static functions
@@ -341,3 +343,28 @@ int howler_get_high_power_led(howler_led *out,
   return howler_get_led(out, dev, high_power_offset + high_power_index);
 }
 
+
+int howler_set_input_keyboard(howler_device *dev, howler_input ipt,
+                              howler_key_scan_code code,
+                              howler_key_modifiers modifiers) {
+  // Make sure all of our inputs are sane.
+  if(ipt < eHowlerInput_FIRST || ipt > eHowlerInput_LAST) {
+    return HOWLER_ERROR_INVALID_PARAMS;
+  }
+
+  if(code < eHowlerKeyScanCode_FIRST || code > eHowlerKeyScanCode_LAST) {
+    return HOWLER_ERROR_INVALID_PARAMS;
+  }
+
+  unsigned char cmd_buf[24];
+  memset(cmd_buf, 0, sizeof(cmd_buf));
+
+  cmd_buf[0] = CMD_HOWLER_ID;
+  cmd_buf[1] = CMD_SET_INPUT;
+  cmd_buf[2] = ipt;
+  cmd_buf[2] = IT_KEYBOARD;
+  cmd_buf[3] = code;
+  cmd_buf[4] = modifiers & 0xFF;
+
+  return howler_sendrcv(dev, cmd_buf, NULL);
+}

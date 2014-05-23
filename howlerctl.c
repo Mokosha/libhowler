@@ -56,11 +56,21 @@ static void print_usage() {
   printf("        get-led [CONTROL]\n");
   printf("        set-led-channel CONTROL (red|green|blue) VALUE\n");
   printf("        set-led CONTROL RED GREEN BLUE\n");
+  printf("        set-key INPUT KEY [MODIFIER[+MODIFIER[+...]]]\n");
   printf("\n");
   printf("    CONTROL is a string conforming to one of the following:\n");
   printf("        J1 - J4: Joystick 1 to Joystick 4\n");
   printf("        B1 - B26: Button 1 to Button 26\n");
   printf("        H1 - H2: High Power LED 1 or 2\n");
+  printf("\n");
+  printf("    INPUT is a string conforming to one of the following:\n");
+  printf("        J[1-4][U|D|L|R]: Joystick number and direction (Up Down Left Right)\n");
+  printf("        B1 - B26: Button 1 to Button 26\n");
+  printf("\n");
+  printf("    KEY is a character from a standard US keyboard\n");
+  printf("\n");
+  printf("    MODIFIER is any of the following:\n");
+  printf("        LSHIFT, RSHIFT, LCTRL, RCTRL, LALT, RALT, LUI, RUI\n");
 }
 
 static int get_firmware(howler_device *dev, char *buf, size_t bufSz) {
@@ -339,6 +349,77 @@ static int get_led_status(howler_device *device, int cmd_idx, const char **argv,
   return print_button_led_status(device, button_idx);
 }
 
+static int parse_input(howler_input *out, const char *str) {
+  if(!out || !str) {
+    print_usage();
+    return -1;
+  }
+
+  if(str[0] == 'J') {
+    howler_input joystick = eHowlerInput_Joystick1Up;
+    switch(str[1]) {
+      case '1': joystick = eHowlerInput_Joystick1Up; break;
+      case '2': joystick = eHowlerInput_Joystick2Up; break;
+      case '3': joystick = eHowlerInput_Joystick3Up; break;
+      case '4': joystick = eHowlerInput_Joystick4Up; break;
+      default:
+        print_usage();
+        return -1;
+    }
+
+    switch(str[2]) {
+      case 'U': joystick += 0; break;
+      case 'D': joystick += 1; break;
+      case 'L': joystick += 2; break;
+      case 'R': joystick += 3; break;
+      default:
+        print_usage();
+        return -1;
+    }
+
+    *out = joystick;
+    return 0;
+  } else if(str[0] == 'B') {
+    int buttonNumber = 0;
+    if(sscanf(str + 1, "%d", &buttonNumber) != 1) {
+      print_usage();
+      return -1;
+    }
+
+    if(buttonNumber < 1 || buttonNumber > 26) {
+      print_usage();
+      return -1;
+    }
+
+    *out = eHowlerInput_Button1 + buttonNumber - 1;
+    return 0;
+  }
+
+  print_usage();
+  return -1;
+}
+
+static int set_key(howler_device *device, int cmd_idx, const char **argv, int argc) {
+  if((argc - cmd_idx) < 3) {
+    print_usage();
+    return -1;
+  }
+
+  howler_input ipt;
+  if(parse_input(&ipt, argv[cmd_idx + 1]) < 0) {
+    return -1;
+  }
+
+  if(howler_set_input_keyboard(device, ipt,
+                               eHowlerKeyScanCode_X,
+                               eHowlerKeyModifier_None) < 0) {
+    fprintf(stderr, "INTERNAL ERROR: Unable to set keyboard mapping\n");
+    return -1;
+  }
+
+  return 0;
+}
+
 int main(int argc, const char **argv) {
   int exitCode = 0;
 
@@ -412,6 +493,8 @@ int main(int argc, const char **argv) {
     cmdFn = &set_led_channel;
   } else if(strncmp(cmd, "set-led", 7) == 0) {
     cmdFn = &set_led;
+  } else if(strncmp(cmd, "set-key", 7) == 0) {
+    cmdFn = &set_key;
   } else {
     print_usage();
     exitCode = 1;
