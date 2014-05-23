@@ -47,7 +47,7 @@ static void print_usage() {
   print_version();
   printf("Usage: howler [DEVICE] COMMAND [OPTIONS]\n");
   printf("\n");
-  printf("    DEVICE is a number from 0 to 4 that designates the\n");
+  printf("    DEVICE is a number from 0 to 3 that designates the\n");
   printf("    corresponding Howler device. The default is 0.\n");
   printf("\n");
   printf("    COMMAND is one of the following:\n");
