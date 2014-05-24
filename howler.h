@@ -291,8 +291,8 @@ typedef enum {
   eHowlerKeyScanCode_DOWN       = 81,
   eHowlerKeyScanCode_UP         = 82,
   eHowlerKeyScanCode_KEYPAD_NUM_LOCK = 83,
-  eHowlerKeyScanCode_KEYPAD_DIVIDE = 84,
-  eHowlerKeyScanCode_KEYPAD_KEYPAD = 85,
+  eHowlerKeyScanCode_KEYPAD_DIVIDE   = 84,
+  eHowlerKeyScanCode_KEYPAD_AT       = 85,
   eHowlerKeyScanCode_KEYPAD_MULTIPLY = 85,
   eHowlerKeyScanCode_KEYPAD_MINUS    = 86,
   eHowlerKeyScanCode_KEYPAD_PLUS     = 87,
@@ -312,7 +312,7 @@ typedef enum {
   eHowlerKeyScanCode_LAST = eHowlerKeyScanCode_KEYPAD_0,
 } howler_key_scan_code;
 
-static const size_t NUM_HOWLER_KEY_SCAN_CODES = eHowlerKeyScanCode_LAST + 1;
+#define NUM_HOWLER_KEY_SCAN_CODES 96
 
 typedef enum {
   eHowlerKeyModifier_None       = 0x00,
