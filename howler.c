@@ -359,6 +359,9 @@ int howler_set_input_keyboard(howler_device *dev, howler_input ipt,
   unsigned char cmd_buf[24];
   memset(cmd_buf, 0, sizeof(cmd_buf));
 
+  unsigned char output[24];
+  memset(output, 0, sizeof(output));
+
   cmd_buf[0] = CMD_HOWLER_ID;
   cmd_buf[1] = CMD_SET_INPUT;
   cmd_buf[2] = ipt;
@@ -366,5 +369,10 @@ int howler_set_input_keyboard(howler_device *dev, howler_input ipt,
   cmd_buf[4] = code;
   cmd_buf[5] = modifiers & 0xFF;
 
-  return howler_sendrcv(dev, cmd_buf, NULL);
+  int err = howler_sendrcv(dev, cmd_buf, output);
+  if(memcmp(cmd_buf, output, 6) != 0) {
+    err = -1;
+  }
+
+  return err;
 }
