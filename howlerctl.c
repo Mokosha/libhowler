@@ -23,6 +23,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "howler.h"
 
@@ -45,7 +46,7 @@ static void print_version() {
 
 static void print_usage() {
   print_version();
-  printf("Usage: howler [DEVICE] COMMAND [OPTIONS]\n");
+  printf("Usage: howlerctl [DEVICE] COMMAND [OPTIONS]\n");
   printf("\n");
   printf("    DEVICE is a number from 0 to 3 that designates the\n");
   printf("    corresponding Howler device. The default is 0.\n");
@@ -68,6 +69,7 @@ static void print_usage() {
   printf("        B1 - B26: Button 1 to Button 26\n");
   printf("\n");
   printf("    KEY is a character from a standard US keyboard\n");
+  printf("        use the command 'howlerctl list-supported-keys' to print a list\n");
   printf("\n");
   printf("    MODIFIER is any of the following:\n");
   printf("        LSHIFT, RSHIFT, LCTRL, RCTRL, LALT, RALT, LUI, RUI\n");
@@ -399,6 +401,133 @@ static int parse_input(howler_input *out, const char *str) {
   return -1;
 }
 
+static struct {
+  howler_key_scan_code code;
+  const char *code_str;
+} kKeyCodeToStringMap[NUM_HOWLER_KEY_SCAN_CODES] = {
+  { eHowlerKeyScanCode_A, "A" },
+  { eHowlerKeyScanCode_B, "B" },
+  { eHowlerKeyScanCode_C, "C" },
+  { eHowlerKeyScanCode_D, "D" },
+  { eHowlerKeyScanCode_E, "E" },
+  { eHowlerKeyScanCode_F, "F" },
+  { eHowlerKeyScanCode_G, "G" },
+  { eHowlerKeyScanCode_H, "H" },
+  { eHowlerKeyScanCode_I, "I" },
+  { eHowlerKeyScanCode_J, "J" },
+  { eHowlerKeyScanCode_K, "K" },
+  { eHowlerKeyScanCode_L, "L" },
+  { eHowlerKeyScanCode_M, "M" },
+  { eHowlerKeyScanCode_N, "N" },
+  { eHowlerKeyScanCode_O, "O" },
+  { eHowlerKeyScanCode_P, "P" },
+  { eHowlerKeyScanCode_Q, "Q" },
+  { eHowlerKeyScanCode_R, "R" },
+  { eHowlerKeyScanCode_S, "S" },
+  { eHowlerKeyScanCode_T, "T" },
+  { eHowlerKeyScanCode_U, "U" },
+  { eHowlerKeyScanCode_V, "V" },
+  { eHowlerKeyScanCode_W, "W" },
+  { eHowlerKeyScanCode_X, "X" },
+  { eHowlerKeyScanCode_Y, "Y" },
+  { eHowlerKeyScanCode_Z, "Z" },
+  { eHowlerKeyScanCode_1, "1" },
+  { eHowlerKeyScanCode_2, "2" },
+  { eHowlerKeyScanCode_3, "3" },
+  { eHowlerKeyScanCode_4, "4" },
+  { eHowlerKeyScanCode_5, "5" },
+  { eHowlerKeyScanCode_6, "6" },
+  { eHowlerKeyScanCode_7, "7" },
+  { eHowlerKeyScanCode_8, "8" },
+  { eHowlerKeyScanCode_9, "9" },
+  { eHowlerKeyScanCode_0, "0" },
+  { eHowlerKeyScanCode_ENTER, "ENTER" },
+  { eHowlerKeyScanCode_ESCAPE, "ESCAPE" },
+  { eHowlerKeyScanCode_BACKSPACE, "BACKSPACE" },
+  { eHowlerKeyScanCode_TAB, "TAB" },
+  { eHowlerKeyScanCode_SPACEBAR, "SPACEBAR" },
+  { eHowlerKeyScanCode_UNDERSCORE, "UNDERSCORE" },
+  { eHowlerKeyScanCode_PLUS, "PLUS" },
+  { eHowlerKeyScanCode_OPEN_BRACKET, "OPEN_BRACKET" },
+  { eHowlerKeyScanCode_CLOSE_BRACKET, "CLOSE_BRACKET" },
+  { eHowlerKeyScanCode_BACKSLASH, "BACKSLASH" },
+  { eHowlerKeyScanCode_ASH, "ASH" },
+  { eHowlerKeyScanCode_COLON, "COLON" },
+  { eHowlerKeyScanCode_QUOTE, "QUOTE" },
+  { eHowlerKeyScanCode_TILDE, "TILDE" },
+  { eHowlerKeyScanCode_COMMA, "COMMA" },
+  { eHowlerKeyScanCode_DOT, "DOT" },
+  { eHowlerKeyScanCode_SLASH, "SLASH" },
+  { eHowlerKeyScanCode_CAPS_LOCK, "CAPS_LOCK" },
+  { eHowlerKeyScanCode_F1, "F1" },
+  { eHowlerKeyScanCode_F2, "F2" },
+  { eHowlerKeyScanCode_F3, "F3" },
+  { eHowlerKeyScanCode_F4, "F4" },
+  { eHowlerKeyScanCode_F5, "F5" },
+  { eHowlerKeyScanCode_F6, "F6" },
+  { eHowlerKeyScanCode_F7, "F7" },
+  { eHowlerKeyScanCode_F8, "F8" },
+  { eHowlerKeyScanCode_F9, "F9" },
+  { eHowlerKeyScanCode_F10, "F10" },
+  { eHowlerKeyScanCode_F11, "F11" },
+  { eHowlerKeyScanCode_F12, "F12" },
+  { eHowlerKeyScanCode_PRINTSCREEN, "PRINTSCREEN" },
+  { eHowlerKeyScanCode_SCROLL_LOCK, "SCROLL_LOCK" },
+  { eHowlerKeyScanCode_PAUSE, "PAUSE" },
+  { eHowlerKeyScanCode_INSERT, "INSERT" },
+  { eHowlerKeyScanCode_HOME, "HOME" },
+  { eHowlerKeyScanCode_PAGEUP, "PAGEUP" },
+  { eHowlerKeyScanCode_DELETE, "DELETE" },
+  { eHowlerKeyScanCode_END, "END" },
+  { eHowlerKeyScanCode_PAGEDOWN, "PAGEDOWN" },
+  { eHowlerKeyScanCode_RIGHT, "RIGHT" },
+  { eHowlerKeyScanCode_LEFT, "LEFT" },
+  { eHowlerKeyScanCode_DOWN, "DOWN" },
+  { eHowlerKeyScanCode_UP, "UP" },
+  { eHowlerKeyScanCode_KEYPAD_NUM_LOCK, "KEYPAD_NUM_LOCK" },
+  { eHowlerKeyScanCode_KEYPAD_DIVIDE, "KEYPAD_DIVIDE" },
+  { eHowlerKeyScanCode_KEYPAD_AT, "KEYPAD_AT" },
+  { eHowlerKeyScanCode_KEYPAD_MULTIPLY, "KEYPAD_MULTIPLY" },
+  { eHowlerKeyScanCode_KEYPAD_MINUS, "KEYPAD_MINUS" },
+  { eHowlerKeyScanCode_KEYPAD_PLUS, "KEYPAD_PLUS" },
+  { eHowlerKeyScanCode_KEYPAD_ENTER, "KEYPAD_ENTER" },
+  { eHowlerKeyScanCode_KEYPAD_1, "KEYPAD_1" },
+  { eHowlerKeyScanCode_KEYPAD_2, "KEYPAD_2" },
+  { eHowlerKeyScanCode_KEYPAD_3, "KEYPAD_3" },
+  { eHowlerKeyScanCode_KEYPAD_4, "KEYPAD_4" },
+  { eHowlerKeyScanCode_KEYPAD_5, "KEYPAD_5" },
+  { eHowlerKeyScanCode_KEYPAD_6, "KEYPAD_6" },
+  { eHowlerKeyScanCode_KEYPAD_7, "KEYPAD_7" },
+  { eHowlerKeyScanCode_KEYPAD_8, "KEYPAD_8" },
+  { eHowlerKeyScanCode_KEYPAD_9, "KEYPAD_9" },
+  { eHowlerKeyScanCode_KEYPAD_0, "KEYPAD_0" }
+};
+
+static int parse_key(howler_key_scan_code *out, const char *str) {
+  if(!out || !str) {
+    return -1;
+  }
+
+  int i = 0;
+  for (; i < NUM_HOWLER_KEY_SCAN_CODES; ++i) {
+    const char *code_str = kKeyCodeToStringMap[i].code_str;
+    if(strncmp(code_str, str, strlen(code_str)) == 0) {
+      *out = kKeyCodeToStringMap[i].code;
+      return 0;
+    }
+  }
+  print_usage();
+  return -1;
+}
+
+static int list_supported_keys(howler_device *device, int cmd_idx, const char **argv, int argc) {
+  int i = 0;
+  for (; i < NUM_HOWLER_KEY_SCAN_CODES; ++i) {
+    printf("  %s\n", kKeyCodeToStringMap[i].code_str);
+  }
+  return 0;
+}
+
 static int set_key(howler_device *device, int cmd_idx, const char **argv, int argc) {
   if((argc - cmd_idx) < 3) {
     print_usage();
@@ -410,8 +539,12 @@ static int set_key(howler_device *device, int cmd_idx, const char **argv, int ar
     return -1;
   }
 
-  if(howler_set_input_keyboard(device, ipt,
-                               eHowlerKeyScanCode_X,
+  howler_key_scan_code code;
+  if(parse_key(&code, argv[cmd_idx + 2]) < 0) {
+    return -1;
+  }
+
+  if(howler_set_input_keyboard(device, ipt, code,
                                eHowlerKeyModifier_None) < 0) {
     fprintf(stderr, "INTERNAL ERROR: Unable to set keyboard mapping\n");
     return -1;
@@ -486,7 +619,9 @@ int main(int argc, const char **argv) {
     char versionBuf[256];
     get_firmware(device, versionBuf, 256);
     printf("Firmware version: %s\n", versionBuf);
-
+    goto done;
+  } else if(strncmp(cmd, "list-supported-keys", 19) == 0) {
+    cmdFn = list_supported_keys;
   } else if(strncmp(cmd, "get-led", 7) == 0) {
     cmdFn = &get_led_status;
   } else if(strncmp(cmd, "set-led-channel", 15) == 0) {
