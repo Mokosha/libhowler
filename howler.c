@@ -362,9 +362,9 @@ int howler_set_input_keyboard(howler_device *dev, howler_input ipt,
   cmd_buf[0] = CMD_HOWLER_ID;
   cmd_buf[1] = CMD_SET_INPUT;
   cmd_buf[2] = ipt;
-  cmd_buf[2] = IT_KEYBOARD;
-  cmd_buf[3] = code;
-  cmd_buf[4] = modifiers & 0xFF;
+  cmd_buf[3] = IT_KEYBOARD;
+  cmd_buf[4] = code;
+  cmd_buf[5] = modifiers & 0xFF;
 
   return howler_sendrcv(dev, cmd_buf, NULL);
 }
