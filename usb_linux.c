@@ -296,7 +296,7 @@ int howler_init(howler_context **ctx_ptr) {
 
   result->key_down_callback = NULL;
   result->key_up_callback = NULL;
-
+#if 0
   // Setup polling thread
   struct libusb_transfer *polling = libusb_alloc_transfer(0);
   if(!polling) {
@@ -328,7 +328,7 @@ int howler_init(howler_context **ctx_ptr) {
 
   result->polling = polling;
   result->exitFlag = 0;
-
+#endif
   *ctx_ptr = result;
 
   // Cleanup
@@ -347,9 +347,11 @@ int howler_init(howler_context **ctx_ptr) {
 void howler_destroy(howler_context *ctx) {
   if(!ctx) { return; }
 
+#if 0
   struct libusb_transfer *polling = (struct libusb_transfer *)(ctx->polling);
   libusb_cancel_transfer(polling);
   libusb_free_transfer(polling);
+#endif
 
   unsigned int i = 0;
   for(; i < ctx->nDevices; i++) {
